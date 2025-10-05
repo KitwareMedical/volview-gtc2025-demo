@@ -46,7 +46,8 @@ import { ConnectionState, useServerStore } from '@/src/store/server';
 import DataBrowser from './DataBrowser.vue';
 import RenderingModule from './RenderingModule.vue';
 import AnnotationsModule from './AnnotationsModule.vue';
-import ServerModule from './ServerModule.vue';
+// import ServerModule from './ServerModule.vue';
+import Vista3DModule from './Vista3DModule.vue';
 import ProbeView from './ProbeView.vue';
 import { useToolStore } from '../store/tools';
 import { Tools } from '../store/tools/types';
@@ -74,10 +75,15 @@ const Modules: Module[] = [
     icon: 'cube',
     component: RenderingModule,
   },
+  // {
+  //  name: 'Remote',
+  //  icon: 'server-network',
+  //  component: ServerModule,
+  // },
   {
-    name: 'Remote',
-    icon: 'server-network',
-    component: ServerModule,
+    name: 'VISTA3D',
+    icon: 'cube',
+    component: Vista3DModule,
   },
 ];
 
