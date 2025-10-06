@@ -15,7 +15,7 @@ export const useBackendModelStore = defineStore('backend-model-store', {
    * Defines the initial state of the store.
    */
   state: (): State => ({
-    selectedModel: 'medgemma', // Default model on initialization
+    selectedModel: 'MedGemma', // Default model on initialization
     analysisIdList: [],
     analysisInput: Object.create(null),
     analysisOutput: Object.create(null),

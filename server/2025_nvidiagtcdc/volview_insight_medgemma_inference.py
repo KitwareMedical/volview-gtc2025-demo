@@ -4,62 +4,14 @@ from PIL import Image
 import itk
 import numpy as np
 
-def generate_vital_sign_summary_prompt(vital_signs_data: dict) -> str:
+def run_volview_insight_medgemma_inference(input_data: dict, itk_img: itk.image) -> str:
     """
-    Parses a dictionary of vital sign measurements and generates a natural language
-    summary prompt, focusing on the most recent measurement for each vital sign.
-
-    Args:
-        vital_signs_data (dict): A dictionary containing vital sign measurements.
-                                 Expected keys include 'heart_rate', 'respiratory_rate',
-                                 'spo2', 'systolic_bp', 'diastolic_bp' and
-                                 'mean_arterial_pressure'. Each vital sign value is expected to be a list,
-                                 with the most recent measurement as the last element.
-
-    Returns:
-        str: A natural language string summarizing the most recent vital signs
-    """
-    summary_parts = []
-
-    # Define a mapping from dictionary keys to human-readable names and units
-    vital_sign_map = {
-        "heart_rate": {"name": "Heart Rate", "unit": "bpm"},
-        "respiratory_rate": {"name": "Respiratory Rate", "unit": "breaths/min"},
-        "spo2": {"name": "SpO2", "unit": "%"},
-        "systolic_bp": {"name": "Systolic Blood Pressure", "unit": "mmHg"},
-        "diastolic_bp": {"name": "Diastolic Blood Pressure", "unit": "mmHg"},
-        "mean_arterial_pressure": {"name": "Mean Arterial Pressure", "unit": "mmHg"},
-    }
-
-    # Extract the most recent measurement for each vital sign
-    for key, info in vital_sign_map.items():
-        if key in vital_signs_data and vital_signs_data[key]:
-            # The most recent measurement is the last element in the list
-            most_recent_value = vital_signs_data[key][-1]
-            summary_parts.append(f"{info['name']}: {most_recent_value} {info['unit']}")
-        else:
-            summary_parts.append(f"{info['name']}: Not available")
-
-    # Combine the vital sign summaries
-    vital_signs_summary = ", ".join(summary_parts)
-
-    return vital_signs_summary
-
-def run_volview_insight_medgemma_inference(input_data: dict, itk_img: itk.image = None) -> str:
-    """
-    Runs inference using the MedGemma 27B - Multimodal model. It can process either text-only prompts (not preferred)
-    or prompts combined with an ITK image and vital signs data.
+    Runs inference using the MedGemma 27B - Multimodal model.
 
     Args:
         input_data (dict): A dictionary containing input data.
                            Expected to have a 'prompt' key with the user's question (str).
-                           If an image is provided, we also check the input data for vital signs
-                           data: ('heart_rate', 'respiratory_rate', 'spo2', 'systolic_bp',
-                           'diastolic_bp', 'mean_arterial_pressure'), each with a list
-                           of measurements ordered chronologically.
-        itk_img (itk.image, optional): An ITK image object. If provided, the image
-                                       will be processed along with the vital signs data
-                                       and the prompt. Defaults to None.
+        itk_img (itk.image, optional): An ITK image object.
 
     Returns:
         str: The generated text response from the MedGemma model.
@@ -80,28 +32,19 @@ def run_volview_insight_medgemma_inference(input_data: dict, itk_img: itk.image 
 
     # Question
     user_question = input_data['prompt']
-    vital_signs_summary = generate_vital_sign_summary_prompt(input_data)
 
-    if itk_img is not None:
+    # Load image 
+    img_array = itk.array_from_image(itk_img).astype(int).squeeze()
+    print('Input image array shape:', img_array.shape)
+    image_uint8 = (255 * (img_array - img_array.min()) / (img_array.max() - img_array.min())).astype(np.uint8)
+    image = Image.fromarray(image_uint8)
 
-        # Load image 
-        img_array = itk.array_from_image(itk_img).astype(int).squeeze()
-        print('Input image array shape:', img_array.shape)
-        image_uint8 = (255 * (img_array - img_array.min()) / (img_array.max() - img_array.min())).astype(np.uint8)
-        image = Image.fromarray(image_uint8)
-
-        prompt = f"Analyze the provided chest X-ray and the patient's most recent vital signs: {vital_signs_summary}. Based on this data, answer the following question: {user_question}"  
-        content = [
-                    {"type": "text", "text": prompt},
-                    {"type": "image", "image": image}
-                ]
-    
-    else:
-        prompt = f"Analyze the patient's most recent vital signs: {vital_signs_summary}. Based on this data, answer the following question: {user_question}"  
-        content = [
-            {"type": "text", "text": prompt}
+    prompt = f"Analyze the provided chest X-ray. Based on this data, answer the following question: {user_question}"  
+    content = [
+                {"type": "text", "text": prompt},
+                {"type": "image", "image": image}
             ]
-
+    
     print('MedGemma prompt:', prompt)
     messages = [
         {

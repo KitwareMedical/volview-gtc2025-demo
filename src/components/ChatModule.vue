@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
-import { usePatientStore } from '../store/patient-store';
 import { useBackendModelStore } from '../store/backend-model-store';
 import { useServerStore, ConnectionState } from '@/src/store/server';
 import useViewSliceStore from '@/src/store/view-configs/slicing';
@@ -13,21 +12,16 @@ import useViewSliceStore from '@/src/store/view-configs/slicing';
 /** Identifier for the view whose slice we are interested in. */
 const TARGET_VIEW_ID = 'Axial';
 
-/** List of vital sign fields to extract from the backend model store. */
-const VITAL_FIELDS = ['heart_rate', 'respiratory_rate', 'spo2'] as const;
-
 /** Available backend models for selection. */
 const AVAILABLE_MODELS = ['MedGemma', 'Clara NV-Reason-CXR-3B'] as const;
 type ModelName = typeof AVAILABLE_MODELS[number];
 
 // --- Store and Composables Setup ---
-const patientStore = usePatientStore();
 const backendModelStore = useBackendModelStore();
 const serverStore = useServerStore();
 const viewSliceStore = useViewSliceStore();
 const md = new MarkdownIt({ breaks: true });
 
-const { selectedPatient, vitals } = storeToRefs(patientStore);
 const { selectedModel } = storeToRefs(backendModelStore);
 const { client } = serverStore;
 const { currentImageID } = useCurrentImage();
@@ -62,16 +56,6 @@ const currentMessages = computed(() => {
     return chatHistories.value[model] ?? [];
 });
 
-// --- Watchers ---
-
-/**
- * Reset all chat histories when the selected patient changes.
- */
-watch(selectedPatient, () => {
-    resetAllChats();
-});
-
-
 // --- Utility Functions ---
 
 /**
@@ -88,20 +72,6 @@ const selectModel = (model: ModelName) => {
 const resetAllChats = () => {
   chatHistories.value = {} as Record<ModelName, Message[]>;
 };
-
-/**
- * Extracts the numerical value from a list of FHIR Observation resources for a given vital field.
- * @param field The vital field name (e.g., 'heart_rate').
- * @returns An array of numerical vital sign values.
- */
-function extractVitals(field: typeof VITAL_FIELDS[number]): (number | undefined)[] {
-  const observations = vitals.value[field];
-  return (
-    observations
-      ?.map((obs) => obs?.valueQuantity?.value)
-      .filter((v): v is number | undefined => v != null) ?? []
-  );
-}
 
 /**
  * Appends a new message to the chat log for the currently active model.
@@ -121,9 +91,9 @@ const sendMessage = async () => {
   if (!text || isTyping.value) return;
 
   // Initial setup and validation
-  const patientID = selectedPatient.value?.id;
-  if (!patientID) {
-    console.error('No patient is selected.');
+  const imageId = currentImageID.value;
+  if (!imageId) {
+    console.error('No image is selected.');
     return;
   }
 
@@ -132,31 +102,20 @@ const sendMessage = async () => {
   isTyping.value = true;
 
   try {
-    // Dynamically build the vital signs part of the payload
-    const vitalPayload = VITAL_FIELDS.reduce(
-      (acc, field) => {
-        acc[field] = extractVitals(field);
-        return acc;
-      },
-      {} as Record<typeof VITAL_FIELDS[number], (number | undefined)[]>
-    );
-
     // Define the complete payload
     const payload = {
       prompt: text,
-      ...vitalPayload,
     };
 
-    backendModelStore.setAnalysisInput(patientID, payload);
+    backendModelStore.setAnalysisInput(imageId, payload);
 
     await client.call('multimodalLlmAnalysis', [
-      patientID,
-      currentImageID.value ?? null,
+      imageId,
       currentSlice.value,
     ]);
 
     // Get the data outputs from the store
-    const botResponse = backendModelStore.analysisOutput[patientID];
+    const botResponse = backendModelStore.analysisOutput[imageId];
 
     if (!botResponse || typeof botResponse !== 'string') {
       throw new Error('Received an invalid or malformed response from the server.');
@@ -165,10 +124,6 @@ const sendMessage = async () => {
     appendMessage(botResponse, 'bot');
   } catch (error) {
     console.error('Error calling multimodalLlmAnalysis:', error);
-    const errorMessage = (error as Error).message.includes('No patient')
-      ? 'Please select a patient before chatting.'
-      : 'Sorry, an error occurred while processing your request. Please try again.';
-    appendMessage(errorMessage, 'bot');
   } finally {
     isTyping.value = false;
   }
@@ -177,7 +132,7 @@ const sendMessage = async () => {
 
 <template>
   <v-container fluid class="fill-height pa-0">
-    <v-card v-if="selectedPatient" class="chat-card">
+    <v-card v-if="currentImageID" class="chat-card">
       <v-card-title class="d-flex align-center py-2">
         <span class="text-subtitle-1">AI Assistant</span>
         <v-spacer></v-spacer>
@@ -272,7 +227,7 @@ const sendMessage = async () => {
       border="start"
       icon="mdi-account-search-outline"
     >
-      Please select a patient to begin a chat session.
+      Please load an image to begin a chat session.
     </v-alert>
   </v-container>
 </template>

@@ -22,7 +22,7 @@ def run_volview_insight_clara_nv_reason_cxr_3b_inference(input_data: Dict[str, A
         raise ValueError("Nvidia CXR model requires an image for analysis.")
 
     # --- 1. Define Model Path and Load ---
-    model_path = "models/nvidia-reason-cxr-3b"
+    model_path = "/Users/andrew.howe/projects/vvi/2025-nvidiagtcdc-vvi/server/2025_nvidiagtcdc/models/nvidia-reason-cxr-3b"
 
     model = AutoModelForImageTextToText.from_pretrained(
         model_path,
