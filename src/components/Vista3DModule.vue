@@ -60,22 +60,37 @@ const hasCurrentImage = computed(() => !!currentImageID.value);
 
 <template>
   <div class="overflow-y-auto overflow-x-hidden ma-2 fill-height">
-    <v-alert v-if="!ready" color="info">Not connected to the server.</v-alert>
-    <v-divider />
-    <v-list-subheader>Segment With Clara NV-Curate-CTMR-v2</v-list-subheader> <div>
-      <v-row>
-        <v-col>
-          <v-btn
-            @click="doSegmentWithVista3D"
-            :loading="segmentWithVista3DLoading"
-            :disabled="!ready || !hasCurrentImage"
-          >
-            Run Segmentation with Clara </v-btn>
-          <span v-if="!hasCurrentImage" class="ml-4 body-2">
-            No image loaded
-          </span>
-        </v-col>
-      </v-row>
-    </div>
+    <v-alert v-if="!ready" color="info" class="mb-4">
+      Not connected to the server.
+    </v-alert>
+
+    <v-card>
+      <v-card-title class="text-h6">
+        <v-icon class="mr-2">mdi-auto-fix</v-icon>
+        Clara NV-Curate-CTMR-v2
+      </v-card-title>
+      <v-card-text>
+        <div class="text-body-2 mb-4">
+          Automatically run segmentation on the currently loaded image.
+        </div>
+
+        <v-btn
+          color="primary"
+          size="x-large"
+          block
+          @click="doSegmentWithVista3D"
+          :loading="segmentWithVista3DLoading"
+          :disabled="!ready || !hasCurrentImage"
+          class="mb-3"
+        >
+          <v-icon left>mdi-play</v-icon>
+          {{ segmentWithVista3DLoading ? 'Running Segmentation...' : 'Run Segmentation' }}
+        </v-btn>
+
+        <div class="text-center text-caption" v-if="!hasCurrentImage">
+          Load an image to enable segmentation.
+        </div>
+      </v-card-text>
+    </v-card>
   </div>
 </template>
