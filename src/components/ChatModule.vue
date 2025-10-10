@@ -5,7 +5,7 @@ import MarkdownIt from 'markdown-it';
 
 import useViewSliceStore from '@/src/store/view-configs/slicing';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
-import { useServerStore, ConnectionState } from '@/src/store/server-1';
+import { useServerStore, ConnectionState } from '@/src/store/server-2';
 import { useBackendModelStore } from '../store/backend-model-store';
 
 // --- Configuration ---
