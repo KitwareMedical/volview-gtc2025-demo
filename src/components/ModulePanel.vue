@@ -66,16 +66,16 @@ const Modules: Module[] = [
     icon: 'database',
     component: DataBrowser,
   },
-  // {
-  //   name: 'Annotations',
-  //   icon: 'pencil',
-  //   component: AnnotationsModule,
-  // },
-  // {
-  //   name: 'Rendering',
-  //   icon: 'cube',
-  //   component: RenderingModule,
-  // },
+  {
+    name: 'Annotations',
+    icon: 'pencil',
+    component: AnnotationsModule,
+  },
+  {
+    name: 'Rendering',
+    icon: 'cube',
+    component: RenderingModule,
+  },
   // {
   //  name: 'Remote',
   //  icon: 'server-network',
