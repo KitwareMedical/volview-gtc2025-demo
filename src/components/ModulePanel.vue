@@ -49,6 +49,7 @@ import AnnotationsModule from './AnnotationsModule.vue';
 // import ServerModule from './ServerModule.vue';
 import Vista3DModule from './Vista3DModule.vue';
 import ChatModule from './ChatModule.vue';
+import MAISIModule from './MAISIModule.vue';
 import ProbeView from './ProbeView.vue';
 import { useToolStore } from '../store/tools';
 import { Tools } from '../store/tools/types';
@@ -75,6 +76,11 @@ const Modules: Module[] = [
     name: 'Reason',
     icon: 'chat',
     component: ChatModule,
+  },
+  {
+    name: 'Generate',
+    icon: 'magic-staff',
+    component: MAISIModule,
   },
   {
     name: 'Annotations',
