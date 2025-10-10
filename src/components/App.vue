@@ -72,7 +72,9 @@ import DragAndDrop from '@/src/components/DragAndDrop.vue';
 import PersistentOverlay from '@/src/components/PersistentOverlay.vue';
 import ControlsModal from '@/src/components/ControlsModal.vue';
 import { useImageStore } from '@/src/store/datasets-images';
-import { useServerStore } from '@/src/store/server-1';
+import { useServerStore as useServerStore1 } from '@/src/store/server-1';
+import { useServerStore as useServerStore2 } from '@/src/store/server-2';
+import { useServerStore as useServerStore3 } from '@/src/store/server-3';
 import { useGlobalErrorHook } from '@/src/composables/useGlobalErrorHook';
 import { useKeyboardShortcuts } from '@/src/composables/useKeyboardShortcuts';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
@@ -149,10 +151,10 @@ export default defineComponent({
 
     // --- remote server --- //
 
-    const serverStore = useServerStore();
+    const serverStores = [useServerStore1(), useServerStore2(), useServerStore3()];
 
     onMounted(() => {
-      serverStore.connect();
+      serverStores.forEach((store) => store.connect());
     });
 
     // --- save state --- //
