@@ -18,16 +18,16 @@ const ready = computed(
   () => serverStore.connState === ConnectionState.Connected
 );
 
-const segmentWithMONAILoading = ref(false);
+const segmentWithVista3DLoading = ref(false);
 const { currentImageID } = useCurrentImage();
 
-const doSegmentWithMONAI = async () => {
+const doSegmentWithVista3D = async () => {
   const baseImageId = currentImageID.value;
   if (!baseImageId) return;
 
-  segmentWithMONAILoading.value = true;
+  segmentWithVista3DLoading.value = true;
   try {
-    await client.call('segmentWithMONAI', [baseImageId]);
+    await client.call('segmentWithVista3D', [baseImageId]);
     const labelmapObject = vista3dStore.getVista3dResult(baseImageId);
 
     if (!labelmapObject) {
@@ -40,19 +40,18 @@ const doSegmentWithMONAI = async () => {
 
     // Add the data as a new image layer with corrected arguments.
     const newImageId = imageStore.addVTKImageData(
-      'MONAI Segmentation Result',
-      labelmapImageData,
+      'Clara NV-Curate-CTMR-v2 Segmentation Result',
+      labelmapImageData
     );
 
     // Convert the new image layer to a labelmap.
     segmentGroupStore.convertImageToLabelmap(newImageId, baseImageId);
 
     console.log('Segmentation successfully loaded and converted to labelmap!');
-
   } catch (error) {
     console.error('An error occurred during segmentation:', error);
   } finally {
-    segmentWithMONAILoading.value = false;
+    segmentWithVista3DLoading.value = false;
   }
 };
 
@@ -63,17 +62,15 @@ const hasCurrentImage = computed(() => !!currentImageID.value);
   <div class="overflow-y-auto overflow-x-hidden ma-2 fill-height">
     <v-alert v-if="!ready" color="info">Not connected to the server.</v-alert>
     <v-divider />
-    <v-list-subheader>Segment With MONAI</v-list-subheader>
-    <div>
+    <v-list-subheader>Segment With Clara NV-Curate-CTMR-v2</v-list-subheader> <div>
       <v-row>
         <v-col>
           <v-btn
-            @click="doSegmentWithMONAI"
-            :loading="segmentWithMONAILoading"
+            @click="doSegmentWithVista3D"
+            :loading="segmentWithVista3DLoading"
             :disabled="!ready || !hasCurrentImage"
           >
-            Run Segment With MONAI
-          </v-btn>
+            Run Segmentation with Clara </v-btn>
           <span v-if="!hasCurrentImage" class="ml-4 body-2">
             No image loaded
           </span>

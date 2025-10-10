@@ -122,7 +122,7 @@ async def run_monai_inference_process(img) -> Dict:
     return segmentation_object
 
 
-@volview.expose("segmentWithMONAI")
+@volview.expose("segmentWithVista3D")
 async def run_vista3d_segmentation(img_id: str):
     """
     Exposes MONAI Vista3D segmentation to the VolView client.
