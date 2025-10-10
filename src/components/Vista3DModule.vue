@@ -1,52 +1,53 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import pako from 'pako';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
 import { useServerStore, ConnectionState } from '@/src/store/server';
 import { useVista3dStore } from '@/src/store/vista3d';
-import { loadFiles } from '@/src/actions/loadUserFiles';
+import { useImageStore } from '@/src/store/datasets-images';
+import { useSegmentGroupStore } from '@/src/store/segmentGroups';
+import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
+import vtk from '@kitware/vtk.js/vtk';
 
 const serverStore = useServerStore();
 const vista3dStore = useVista3dStore();
+const imageStore = useImageStore();
+const segmentGroupStore = useSegmentGroupStore();
+
 const { client } = serverStore;
 const ready = computed(
   () => serverStore.connState === ConnectionState.Connected
 );
 
-// --- run vista 3d --- //
-
 const segmentWithMONAILoading = ref(false);
 const { currentImageID } = useCurrentImage();
 
 const doSegmentWithMONAI = async () => {
-  const id = currentImageID.value;
-  if (!id) return;
+  const baseImageId = currentImageID.value;
+  if (!baseImageId) return;
 
   segmentWithMONAILoading.value = true;
   try {
-    await client.call('segmentWithMONAI', [id]);
-    const blobResult = vista3dStore.getVista3dResult(id);
+    await client.call('segmentWithMONAI', [baseImageId]);
+    const labelmapObject = vista3dStore.getVista3dResult(baseImageId);
 
-    if (!blobResult) {
-      console.error(`No vista3d data found for ID: ${id}`);
+    if (!labelmapObject) {
+      console.error(`No vista3d data found for ID: ${baseImageId}`);
       return;
     }
 
-    // 1. Get the raw gzipped bytes from the blob
-    const compressedBytes = await blobResult.arrayBuffer();
+    // Convert the plain JS object and assert its type to vtkImageData
+    const labelmapImageData = vtk(labelmapObject) as vtkImageData;
 
-    // 2. Decompress the bytes using pako
-    const decompressedBytes = pako.ungzip(new Uint8Array(compressedBytes));
+    // Add the data as a new image layer with corrected arguments.
+    const newImageId = imageStore.addVTKImageData(
+      'MONAI Segmentation Result',
+      labelmapImageData,
+    );
 
-    // 3. Create a new File from the DECOMPRESSED data with a .nii extension
-    const segmentationFile = new File([decompressedBytes], 'segmentation.nii', {
-      type: 'application/octet-stream', // Use a generic binary type
-    });
+    // Convert the new image layer to a labelmap.
+    segmentGroupStore.convertImageToLabelmap(newImageId, baseImageId);
 
-    // 4. Load the raw .nii file
-    await loadFiles([segmentationFile]);
-
-    console.log('Segmentation loading initiated!');
+    console.log('Segmentation successfully loaded and converted to labelmap!');
 
   } catch (error) {
     console.error('An error occurred during segmentation:', error);

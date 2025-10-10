@@ -3,47 +3,30 @@ import { reactive, ref } from 'vue';
 import { Maybe } from '@/src/types';
 
 /**
- * A cache for vista3d results, which are treated as opaque .nii.gz blobs.
- * The blobs are indexed by the image ID.
+ * A cache for vista3d results, which are treated as vtk.js image data objects.
+ * The objects are indexed by the image ID.
  */
 export const useVista3dStore = defineStore('vista3d', () => {
   const vista3dIds = ref<string[]>([]);
-  const resultsById = reactive<Record<string, Blob>>({});
+  const resultsById = reactive<Record<string, any>>({});
 
   /**
    * Sets the vista3d result for a given image ID.
    *
-   * This function now accepts raw binary data from the backend (ArrayBuffer,
-   * Uint8Array) and automatically converts it to a Blob for consistent storage.
-   *
    * @param id The image ID.
-   * @param result The .nii.gz data, as a Blob or raw binary buffer.
+   * @param result The vtk.js object from the backend.
    */
-  function setVista3dResult(id: string, result: Blob | ArrayBuffer | Uint8Array) {
-    let dataAsBlob: Blob;
-
-    // Check if the incoming data is already a Blob.
-    if (result instanceof Blob) {
-      dataAsBlob = result;
-    } else {
-      // If not, create a new Blob from the raw binary data (ArrayBuffer/Uint8Array).
-      dataAsBlob = new Blob([result]);
-    }
-
+  function setVista3dResult(id: string, result: any) {
     if (!(id in resultsById)) {
       vista3dIds.value.push(id);
     }
-    // Store the data, now guaranteed to be a Blob.
-    resultsById[id] = dataAsBlob;
+    resultsById[id] = result;
   }
 
   /**
-   * Retrieves the vista3d blob for a given image ID.
-   *
-   * @param id The image ID.
-   * @returns The blob if it exists, otherwise null.
+   * Retrieves the vista3d JSON string for a given image ID.
    */
-  function getVista3dResult(id: Maybe<string>): Maybe<Blob> {
+  function getVista3dResult(id: Maybe<string>): Maybe<any> {
     if (!id) return null;
     return resultsById[id] ?? null;
   }
