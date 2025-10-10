@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
-import { useServerStore, ConnectionState } from '@/src/store/server';
+import { useServerStore, ConnectionState } from '@/src/store/server-1';
 
 const serverStore = useServerStore();
 const { client } = serverStore;

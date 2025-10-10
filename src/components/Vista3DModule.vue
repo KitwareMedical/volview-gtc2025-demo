@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
-import { useServerStore, ConnectionState } from '@/src/store/server';
+import { useServerStore, ConnectionState } from '@/src/store/server-1';
 import { useVista3dStore } from '@/src/store/vista3d';
 import { useImageStore } from '@/src/store/datasets-images';
 import { useSegmentGroupStore } from '@/src/store/segmentGroups';

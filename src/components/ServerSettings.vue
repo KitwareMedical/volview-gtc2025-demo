@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ConnectionState, useServerStore } from '@/src/store/server';
+import { ConnectionState, useServerStore } from '@/src/store/server-1';
 import { storeToRefs } from 'pinia';
 
 const serverStore = useServerStore();

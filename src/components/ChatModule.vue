@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 
-import { useCurrentImage } from '@/src/composables/useCurrentImage';
-import { useBackendModelStore } from '../store/backend-model-store';
-import { useServerStore, ConnectionState } from '@/src/store/server';
 import useViewSliceStore from '@/src/store/view-configs/slicing';
+import { useCurrentImage } from '@/src/composables/useCurrentImage';
+import { useServerStore, ConnectionState } from '@/src/store/server-1';
+import { useBackendModelStore } from '../store/backend-model-store';
 
 // --- Configuration ---
 /** Identifier for the view whose slice we are interested in. */
@@ -14,7 +14,7 @@ const TARGET_VIEW_ID = 'Axial';
 
 /** Available backend models for selection. */
 const AVAILABLE_MODELS = ['MedGemma', 'Clara NV-Reason-CXR-3B'] as const;
-type ModelName = typeof AVAILABLE_MODELS[number];
+type ModelName = (typeof AVAILABLE_MODELS)[number];
 
 // --- Store and Composables Setup ---
 const backendModelStore = useBackendModelStore();
@@ -34,12 +34,16 @@ interface Message {
 }
 
 /** Stores chat histories for all models, keyed by model name. */
-const chatHistories = ref<Record<ModelName, Message[]>>({} as Record<ModelName, Message[]>);
+const chatHistories = ref<Record<ModelName, Message[]>>(
+  {} as Record<ModelName, Message[]>
+);
 const newMessage = ref('');
 const isTyping = ref(false);
 
 // --- Computed Properties ---
-const isConnected = computed(() => serverStore.connState === ConnectionState.Connected);
+const isConnected = computed(
+  () => serverStore.connState === ConnectionState.Connected
+);
 
 /** The current slice being viewed in the target 2D view. */
 const currentSlice = computed(() => {
@@ -52,8 +56,8 @@ const currentSlice = computed(() => {
  * Dynamically returns the message history for the currently selected model.
  */
 const currentMessages = computed(() => {
-    const model = selectedModel.value as ModelName;
-    return chatHistories.value[model] ?? [];
+  const model = selectedModel.value as ModelName;
+  return chatHistories.value[model] ?? [];
 });
 
 // --- Utility Functions ---
@@ -87,8 +91,11 @@ const appendMessage = (text: string, sender: 'user' | 'bot') => {
 
 // --- Main Method ---
 const sendMessage = async () => {
+  // Guard against sending messages when disconnected or busy
+  if (!isConnected.value || isTyping.value) return;
+
   const text = newMessage.value.trim();
-  if (!text || isTyping.value) return;
+  if (!text) return;
 
   // Initial setup and validation
   const imageId = currentImageID.value;
@@ -118,12 +125,15 @@ const sendMessage = async () => {
     const botResponse = backendModelStore.analysisOutput[imageId];
 
     if (!botResponse || typeof botResponse !== 'string') {
-      throw new Error('Received an invalid or malformed response from the server.');
+      throw new Error(
+        'Received an invalid or malformed response from the server.'
+      );
     }
 
     appendMessage(botResponse, 'bot');
   } catch (error) {
     console.error('Error calling multimodalLlmAnalysis:', error);
+    appendMessage('Sorry, an error occurred. Please try again.', 'bot');
   } finally {
     isTyping.value = false;
   }
@@ -163,13 +173,15 @@ const sendMessage = async () => {
         </v-menu>
 
         <v-btn
-            icon="mdi-delete-sweep"
-            variant="text"
-            @click="resetAllChats"
-            size="small"
+          icon="mdi-delete-sweep"
+          variant="text"
+          @click="resetAllChats"
+          size="small"
         >
           <v-icon>mdi-delete-sweep</v-icon>
-          <v-tooltip activator="parent" location="bottom">Clear All Chats</v-tooltip>
+          <v-tooltip activator="parent" location="bottom"
+            >Clear All Chats</v-tooltip
+          >
         </v-btn>
       </v-card-title>
 
@@ -179,11 +191,17 @@ const sendMessage = async () => {
         <div
           v-for="message in currentMessages"
           :key="message.id"
-          :class="['d-flex', message.sender === 'user' ? 'justify-end' : 'justify-start']"
+          :class="[
+            'd-flex',
+            message.sender === 'user' ? 'justify-end' : 'justify-start',
+          ]"
           class="mb-4"
         >
           <div :class="['message-bubble', `message-${message.sender}`]">
-            <div v-if="message.sender === 'bot'" v-html="md.render(message.text)"></div>
+            <div
+              v-if="message.sender === 'bot'"
+              v-html="md.render(message.text)"
+            ></div>
             <div v-else class="message-text-user">{{ message.text }}</div>
           </div>
         </div>
@@ -200,8 +218,10 @@ const sendMessage = async () => {
           v-model="newMessage"
           @keydown.enter="sendMessage"
           @keydown.stop
-          :disabled="isTyping"
-          label="Type your message..."
+          :disabled="isTyping || !isConnected"
+          :label="
+            isConnected ? 'Type your message...' : 'Not connected to server'
+          "
           variant="solo"
           hide-details
           clearable
@@ -210,7 +230,7 @@ const sendMessage = async () => {
           <template #append-inner>
             <v-btn
               @click="sendMessage"
-              :disabled="isTyping || !newMessage"
+              :disabled="isTyping || !newMessage || !isConnected"
               icon="mdi-send"
               variant="text"
               color="primary"

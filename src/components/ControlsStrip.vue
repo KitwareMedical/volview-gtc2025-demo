@@ -11,7 +11,7 @@ import Settings from '@/src/components/Settings.vue';
 import ControlsStripTools from '@/src/components/ControlsStripTools.vue';
 import MessageCenter from '@/src/components/MessageCenter.vue';
 import { MessageType, useMessageStore } from '@/src/store/messages';
-import { ConnectionState, useServerStore } from '@/src/store/server';
+import { ConnectionState, useServerStore } from '@/src/store/server-1';
 import { useViewStore } from '@/src/store/views';
 import { Layouts, DefaultLayoutName } from '@/src/config';
 

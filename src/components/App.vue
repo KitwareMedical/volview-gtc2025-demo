@@ -72,7 +72,7 @@ import DragAndDrop from '@/src/components/DragAndDrop.vue';
 import PersistentOverlay from '@/src/components/PersistentOverlay.vue';
 import ControlsModal from '@/src/components/ControlsModal.vue';
 import { useImageStore } from '@/src/store/datasets-images';
-import { useServerStore } from '@/src/store/server';
+import { useServerStore } from '@/src/store/server-1';
 import { useGlobalErrorHook } from '@/src/composables/useGlobalErrorHook';
 import { useKeyboardShortcuts } from '@/src/composables/useKeyboardShortcuts';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';

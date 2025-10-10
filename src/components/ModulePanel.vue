@@ -42,7 +42,7 @@
 <script lang="ts">
 import { Component, computed, defineComponent, ref, watch } from 'vue';
 
-import { ConnectionState, useServerStore } from '@/src/store/server';
+import { ConnectionState, useServerStore } from '@/src/store/server-1';
 import DataBrowser from './DataBrowser.vue';
 import RenderingModule from './RenderingModule.vue';
 import AnnotationsModule from './AnnotationsModule.vue';

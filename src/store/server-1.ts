@@ -3,7 +3,7 @@ import { StoreApi } from '@/src/core/remote/storeApi';
 import { defineStore } from 'pinia';
 import { markRaw, ref } from 'vue';
 
-const { VITE_REMOTE_SERVER_URL } = import.meta.env;
+const { VITE_REMOTE_SERVER_1_URL } = import.meta.env;
 
 export enum ConnectionState {
   Disconnected,
@@ -11,8 +11,8 @@ export enum ConnectionState {
   Connected,
 }
 
-export const useServerStore = defineStore('server', () => {
-  const url = ref(VITE_REMOTE_SERVER_URL ?? '');
+export const useServerStore = defineStore('server-1', () => {
+  const url = ref(VITE_REMOTE_SERVER_1_URL ?? '');
   const connState = ref<ConnectionState>(ConnectionState.Disconnected);
 
   const client = new RpcClient(StoreApi);
