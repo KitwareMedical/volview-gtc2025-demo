@@ -67,6 +67,16 @@ const Modules: Module[] = [
     component: DataBrowser,
   },
   {
+    name: 'Curate',
+    icon: 'brain',
+    component: Vista3DModule,
+  },
+  {
+    name: 'Reason',
+    icon: 'chat',
+    component: ChatModule,
+  },
+  {
     name: 'Annotations',
     icon: 'pencil',
     component: AnnotationsModule,
@@ -81,16 +91,6 @@ const Modules: Module[] = [
   //  icon: 'server-network',
   //  component: ServerModule,
   // },
-  {
-    name: 'VISTA3D',
-    icon: 'cube',
-    component: Vista3DModule,
-  },
-  {
-    name: 'Chat',
-    icon: 'chat',
-    component: ChatModule,
-  },
 ];
 
 const autoSwitchToAnnotationsTools = [
