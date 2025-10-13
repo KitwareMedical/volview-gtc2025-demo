@@ -7,6 +7,7 @@ import useViewSliceStore from '@/src/store/view-configs/slicing';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
 import { useServerStore, ConnectionState } from '@/src/store/server-2';
 import { useBackendModelStore } from '../store/backend-model-store';
+import NVIDIAModelCard from './NVIDIAModelCard.vue';
 
 // --- Configuration ---
 /** Identifier for the view whose slice we are interested in. */
@@ -32,6 +33,23 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
 }
+
+// Placeholder Model Card Data for Misty/Clara
+const mistyCard = {
+  modelName: 'Clara NV-Reason-CXR-3B (Misty)',
+  subtitle: 'Conversational AI for Medical Imaging Analysis',
+  icon: 'mdi-chat-question',
+  chips: [
+    { text: 'Multimodal LLM', icon: 'mdi-text-box-search', color: 'info' },
+    { text: 'Placeholder', icon: 'mdi-flask', color: 'warning' },
+  ],
+  description: 'This is a placeholder description for the Misty model. It is designed to understand and respond to queries about medical images.',
+  details: [
+    { key: 'Architecture', value: 'Placeholder Architecture' },
+    { key: 'Model Version', value: '0.1.0 (Placeholder)' },
+    { key: 'Intended Use', value: 'Radiology report generation and analysis' },
+  ],
+};
 
 /** Stores chat histories for all models, keyed by model name. */
 const chatHistories = ref<Record<ModelName, Message[]>>(
@@ -141,8 +159,8 @@ const sendMessage = async () => {
 </script>
 
 <template>
-  <v-container fluid class="fill-height pa-0">
-    <v-card v-if="currentImageID" class="chat-card">
+  <v-container fluid class="fill-height pa-0 d-flex flex-column">
+    <v-card v-if="currentImageID" class="chat-card mb-4">
       <v-card-title class="d-flex align-center py-2">
         <span class="text-subtitle-1">AI Assistant</span>
         <v-spacer></v-spacer>
@@ -249,6 +267,17 @@ const sendMessage = async () => {
     >
       Please load an image to begin a chat session.
     </v-alert>
+
+     <NVIDIAModelCard
+      v-if="selectedModel === 'Clara NV-Reason-CXR-3B'"
+      :model-name="mistyCard.modelName"
+      :subtitle="mistyCard.subtitle"
+      :icon="mistyCard.icon"
+      :chips="mistyCard.chips"
+      :description="mistyCard.description"
+      :details="mistyCard.details"
+      class="flex-grow-0"
+    />
   </v-container>
 </template>
 
@@ -256,8 +285,8 @@ const sendMessage = async () => {
 .chat-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
+  flex-grow: 1; /* Allows chat card to take up available space */
+  min-height: 300px; /* Ensures chat card is not too small */
 }
 
 .chat-log {

@@ -5,6 +5,7 @@ import { useMAISIStore } from '@/src/store/maisi';
 import { useImageStore } from '@/src/store/datasets-images';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtk from '@kitware/vtk.js/vtk';
+import NVIDIAModelCard from './NVIDIAModelCard.vue';
 
 const serverStore = useServerStore();
 const maisiStore = useMAISIStore();
@@ -28,6 +29,28 @@ const bodyRegions = Object.keys(anatomyData);
 
 const selectedRegion = ref<'abdomen' | 'chest'>('abdomen');
 const selectedPart = ref<string>('liver');
+
+// MAISI Model Card Data
+const maisiCard = {
+  modelName: 'NVIDIA MAISI',
+  subtitle: 'Medical AI for Synthetic Imaging',
+  icon: 'mdi-creation',
+  chips: [
+    { text: 'Synthetic CT Generation', icon: 'mdi-image-plus', color: 'info' },
+    { text: 'Research Use Only', icon: 'mdi-flask', color: 'warning' },
+  ],
+  description: 'NVIDIA MAISI is a state-of-the-art 3D Latent Diffusion Model designed for generating high-quality synthetic CT images with or without anatomical annotations. This AI model excels in data augmentation and creating realistic medical imaging data.',
+  details: [
+    { key: 'Architecture', value: 'ControlNet + 3D UNet + attention blocks' },
+    { key: 'Model Version', value: '0.3.1' },
+    { key: 'Runtime Engine', value: 'MONAI Core v.1.3.2' },
+    { key: 'Supported Hardware', value: 'NVIDIA Ampere, NVIDIA Hopper' },
+  ],
+  references: [
+    { text: 'Guo, P., et al. (2024). MAISI: Medical AI for Synthetic Imaging.', url: 'https://arxiv.org/abs/2409.11169' },
+    { text: 'Rombach, R., et al. (2022). High-resolution image synthesis with latent diffusion models.', url: 'https://openaccess.thecvf.com/content/CVPR2022/papers/Rombach_High-Resolution_Image_Synthesis_With_Latent_Diffusion_Models_CVPR_2022_paper.pdf' },
+  ]
+};
 
 // Computed property to dynamically update anatomy parts based on selected region
 const anatomyParts = computed(() => {
@@ -105,7 +128,7 @@ const doGenerateWithMAISI = async () => {
       Not connected to the server.
     </v-alert>
 
-    <v-card>
+    <v-card class="mb-4">
       <v-card-title class="text-h6">
         <v-icon class="mr-2">mdi-creation</v-icon>
         MAISI Image Generation
@@ -200,5 +223,15 @@ const doGenerateWithMAISI = async () => {
         </v-btn>
       </v-card-text>
     </v-card>
+
+     <NVIDIAModelCard
+      :model-name="maisiCard.modelName"
+      :subtitle="maisiCard.subtitle"
+      :icon="maisiCard.icon"
+      :chips="maisiCard.chips"
+      :description="maisiCard.description"
+      :details="maisiCard.details"
+      :references="maisiCard.references"
+    />
   </div>
 </template>

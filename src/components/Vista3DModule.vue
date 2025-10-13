@@ -7,6 +7,7 @@ import { useImageStore } from '@/src/store/datasets-images';
 import { useSegmentGroupStore } from '@/src/store/segmentGroups';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtk from '@kitware/vtk.js/vtk';
+import NVIDIAModelCard from './NVIDIAModelCard.vue';
 
 const serverStore = useServerStore();
 const vista3dStore = useVista3dStore();
@@ -20,6 +21,18 @@ const ready = computed(
 
 const segmentWithVista3DLoading = ref(false);
 const { currentImageID } = useCurrentImage();
+
+// VISTA-3D Model Card Data
+const vista3dCard = {
+  modelName: 'MONAI VISTA-3D',
+  subtitle: 'Foundation Model for 3D CT Segmentation',
+  chips: [
+    { text: 'Whole Body Segmentation', icon: 'mdi-cube-scan', color: 'info' },
+    { text: 'Research Use Only', icon: 'mdi-flask', color: 'warning' },
+  ],
+  // Add other details here if available
+};
+
 
 const doSegmentWithVista3D = async () => {
   const baseImageId = currentImageID.value;
@@ -64,7 +77,7 @@ const hasCurrentImage = computed(() => !!currentImageID.value);
       Not connected to the server.
     </v-alert>
 
-    <v-card>
+    <v-card class="mb-4">
       <v-card-title class="text-h6">
         <v-icon class="mr-2">mdi-auto-fix</v-icon>
         Clara NV-Curate-CTMR-v2
@@ -92,5 +105,11 @@ const hasCurrentImage = computed(() => !!currentImageID.value);
         </div>
       </v-card-text>
     </v-card>
+
+    <NVIDIAModelCard
+      :model-name="vista3dCard.modelName"
+      :subtitle="vista3dCard.subtitle"
+      :chips="vista3dCard.chips"
+    />
   </div>
 </template>
