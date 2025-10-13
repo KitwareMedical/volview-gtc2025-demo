@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useServerStore, ConnectionState } from '@/src/store/server-3';
 import { useMAISIStore } from '@/src/store/maisi';
 import { useImageStore } from '@/src/store/datasets-images';
@@ -15,16 +15,63 @@ const ready = computed(
   () => serverStore.connState === ConnectionState.Connected
 );
 
+// --- State for Configurable Parameters ---
+
 const generationLoading = ref(false);
-const magicNumber = ref(42); // Dummy parameter for the UI
+
+// Anatomy selections based on your provided list
+const anatomyData = {
+  abdomen: ['liver', 'spleen', 'pancreas', 'right kidney', 'right adrenal gland', 'left adrenal gland', 'gallbladder', 'esophagus', 'stomach', 'duodenum', 'left kidney', 'bladder', 'small bowel', 'hepatic vessel', 'colon'],
+  chest: ['aorta', 'inferior vena cava', 'esophagus', 'portal vein and splenic vein', 'left lung upper lobe', 'left lung lower lobe', 'right lung upper lobe', 'right lung middle lobe', 'right lung lower lobe', 'left iliac artery', 'right iliac artery', 'left iliac vena', 'right iliac vena']
+};
+const bodyRegions = Object.keys(anatomyData);
+
+const selectedRegion = ref<'abdomen' | 'chest'>('abdomen');
+const selectedPart = ref<string>('liver');
+
+// Computed property to dynamically update anatomy parts based on selected region
+const anatomyParts = computed(() => {
+  return anatomyData[selectedRegion.value];
+});
+
+// Watch for region changes to reset the selected anatomy part to the first in the new list
+watch(selectedRegion, (newRegion) => {
+  if (newRegion) {
+    selectedPart.value = anatomyData[newRegion][0];
+  } else {
+    selectedPart.value = '';
+  }
+});
+
+// Resolution selections
+const resolutionXYOptions = [256, 512];
+const resolutionZOptions = [128, 256, 512];
+const selectedResolutionXY = ref(256);
+const selectedResolutionZ = ref(128);
+
+// Spacing selections
+const coronalSagittalSpacing = ref(1.5);
+const axialSpacing = ref(1.5);
+
+// Rule: When XY resolution is 512, lock spacing to 1
+const areSpacingsLocked = computed(() => selectedResolutionXY.value === 512);
+
+watch(selectedResolutionXY, (newVal) => {
+  if (newVal === 512) {
+    coronalSagittalSpacing.value = 1;
+    axialSpacing.value = 1;
+  }
+}, { immediate: true });
 
 const doGenerateWithMAISI = async () => {
   generationLoading.value = true;
-  // Create a unique ID for this generation job to retrieve the result later
   const generationId = `maisi-gen-${Date.now()}`;
   try {
+    // Construct the parameters object from the UI state
     const params = {
-      magicNumber: magicNumber.value,
+      anatomy_list: [selectedPart.value],
+      output_size: [selectedResolutionXY.value, selectedResolutionXY.value, selectedResolutionZ.value],
+      spacing: [coronalSagittalSpacing.value, coronalSagittalSpacing.value, axialSpacing.value]
     };
     await client.call('generateWithMAISI', [generationId, params]);
     const generatedImageObject = maisiStore.getMAISIResult(generationId);
@@ -65,18 +112,79 @@ const doGenerateWithMAISI = async () => {
       </v-card-title>
       <v-card-text>
         <div class="text-body-2 mb-4">
-          Generate a new synthetic 3D CT scan using the MAISI model.
+          Configure the parameters below to generate a new synthetic 3D CT scan.
         </div>
 
-        <v-text-field
-          v-model.number="magicNumber"
-          label="Magic Number"
-          type="number"
+        <v-select
+          v-model="selectedRegion"
+          :items="bodyRegions"
+          label="Body Region"
           variant="outlined"
           density="compact"
           class="mb-4"
           :disabled="generationLoading"
         />
+
+        <v-select
+          v-model="selectedPart"
+          :items="anatomyParts"
+          label="Anatomy Part"
+          variant="outlined"
+          density="compact"
+          class="mb-4"
+          :disabled="!selectedRegion || generationLoading"
+        />
+
+        <v-row>
+          <v-col cols="6">
+            <v-select
+              v-model="selectedResolutionXY"
+              :items="resolutionXYOptions"
+              label="XY Resolution"
+              variant="outlined"
+              density="compact"
+              class="mb-4"
+              :disabled="generationLoading"
+            />
+          </v-col>
+          <v-col cols="6">
+            <v-select
+              v-model="selectedResolutionZ"
+              :items="resolutionZOptions"
+              label="Z Resolution"
+              variant="outlined"
+              density="compact"
+              class="mb-4"
+              :disabled="generationLoading"
+            />
+          </v-col>
+        </v-row>
+
+        <v-slider
+          v-model="coronalSagittalSpacing"
+          label="Coronal/Sagittal Spacing (mm)"
+          :min="1"
+          :max="3"
+          :step="0.5"
+          thumb-label
+          class="mb-2"
+          :disabled="areSpacingsLocked || generationLoading"
+        />
+
+        <v-slider
+          v-model="axialSpacing"
+          label="Axial Spacing (mm)"
+          :min="1"
+          :max="3"
+          :step="0.5"
+          thumb-label
+          class="mb-2"
+          :disabled="areSpacingsLocked || generationLoading"
+        />
+
+        <v-alert v-if="areSpacingsLocked" type="info" variant="tonal" density="compact" class="mb-4">
+          Spacings are locked to 1mm for 512 XY resolution.
+        </v-alert>
 
         <v-btn
           color="primary"
@@ -84,8 +192,8 @@ const doGenerateWithMAISI = async () => {
           block
           @click="doGenerateWithMAISI"
           :loading="generationLoading"
-          :disabled="!ready"
-          class="mb-3"
+          :disabled="!ready || !selectedPart"
+          class="mb-3 mt-4"
         >
           <v-icon left>mdi-play</v-icon>
           {{ generationLoading ? 'Generating...' : 'Generate CT Scan' }}

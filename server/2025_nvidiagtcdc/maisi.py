@@ -4,8 +4,9 @@ import glob
 import subprocess
 import sys
 import tempfile
+import json
 from concurrent.futures import ProcessPoolExecutor
-from typing import Dict
+from typing import Dict, List, Any
 
 import itk
 from volview_server import VolViewApi, get_current_client_store
@@ -54,20 +55,42 @@ def do_maisi_generation(params: dict) -> Dict:
 
         # 2. Execute generation
         bundle_root = os.path.join(MAISI_BUNDLE_DIR, MAISI_BUNDLE_NAME)
+        config_file_path = os.path.join(bundle_root, "configs", "inference.json")
         
         print(f"MONAI: Running MAISI generation with params: {params}...")
-        # Override config file params with values from the client
+        
+        # Build the inference command dynamically from the received parameters
         inference_command = [
             python_executable, "-m", "monai.bundle", "run",
-            "--config_file", "configs/inference.json",
-            f"--output_dir='{output_dir}'",
+            "--config_file", config_file_path,
+            f"--output_dir={output_dir}",
             "--num_output_samples=1",
-            # Add any other parameters you want to override
-            f"--magic_number={params.get('magicNumber', 42)}",
         ]
         
+        # Helper to format list arguments for the command line
+        def format_list_for_cli(data: List[Any]) -> str:
+            # json.dumps ensures proper quoting for strings inside the list
+            return json.dumps(data)
+
+        # Map frontend params to MONAI bundle override arguments
+        if 'anatomy_list' in params and params['anatomy_list']:
+            anatomy_arg = format_list_for_cli(params['anatomy_list'])
+            inference_command.append(f"--anatomy_list={anatomy_arg}")
+            
+        if 'output_size' in params and len(params['output_size']) == 3:
+            size_arg = format_list_for_cli(params['output_size'])
+            inference_command.append(f"--output_size={size_arg}")
+            
+        if 'spacing' in params and len(params['spacing']) == 3:
+            spacing_arg = format_list_for_cli(params['spacing'])
+            inference_command.append(f"--spacing={spacing_arg}")
+
+        print(f"MONAI: Executing command: {' '.join(inference_command)}")
+
         result = subprocess.run(
-            inference_command, cwd=bundle_root, check=True,
+            inference_command,
+            cwd=bundle_root,
+            check=True,
             capture_output=True, text=True
         )
         print("MONAI STDOUT:", result.stdout)
@@ -75,10 +98,15 @@ def do_maisi_generation(params: dict) -> Dict:
             print("MONAI STDERR:", result.stderr)
 
         # 3. Find and read the generated result
-        # Scan output directory for the generated file
-        search_pattern = os.path.join(output_dir, "*.nii.gz")
+        # Be more specific to get the image, not a mask file
+        search_pattern = os.path.join(output_dir, "*image.nii.gz")
         results = glob.glob(search_pattern)
         
+        if not results:
+            # Fallback to any .nii.gz if specific search fails
+            search_pattern_fallback = os.path.join(output_dir, "*.nii.gz")
+            results = glob.glob(search_pattern_fallback)
+
         if not results:
             raise FileNotFoundError(
                 "MONAI generation finished but the expected output file "
