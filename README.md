@@ -1,88 +1,81 @@
-# VolView Materials for NVIDIA GTC 2025
+# VolView + NVIDIA Integration for GTC 2025
 
-This repository is a fork of base [Kitware's
-VolView](https://github.com/Kitware/VolView) with custom features for display at
-NVIDIA GTC 2025. This goal of this repository is to showcase VolView's
-extensibility for incorporating cutting-edge models in the healthcare and
-life sciences at large.
-
-For questions, please reach out to:
-
-- Andrew R. Howe (andrew.howe@kitware.com)
-- Andinet Enquobahrie (andinet.enqu@kitware.com)
+This repository is a fork of [Kitware's
+VolView](https://github.com/Kitware/VolView) customized to showcase VolView's
+extensibility with cutting-edge healthcare models from NVIDIA.
 
 ---
 
-# VolView
+## Overview
 
-![A screenshot of a sample VolView session](./docs/assets/VolView-Overview.jpg)
+This fork integrates three NVIDIA Clara foundation models into the VolView
+interface, each accessible via a dedicated tab. Each of the models are connected
+to VolView via compute-independent and scalable backend servers.
 
-## Try it
+For general VolView features, documentation, and issue tracking, please refer to
+the official [Kitware/VolView repository](https://github.com/Kitware/VolView).
+This README focuses exclusively on the NVIDIA integrations.
 
-Try VolView online: https://volview.kitware.app/
+---
 
-## Introduction
+## NVIDIA Clara Model Integration
 
-VolView is an open source radiological viewer developed for clinical
-professionals. With VolView, you can have a deeper visual understanding of your
-data through interactive, cinematic volume rendering and easily visualize your
-DICOM data in 3D. Since VolView runs in your browser, you don’t need to install
-software and your data stays securely on your machine.
+This version of VolView includes three additional tabs: Curate, Reason, and
+Generate.
 
-Major features of VolView include:
+### Curate Tab (Segmentation)
 
-1. Drag-and-drop DICOM: Drag DICOM images onto VolView, and they will be quickly
-   parsed and presented as thumbnails.  Click on a thumbnail, and the data is
-quickly loaded and presented as 2D slices and a 3D cinematic volume rendering.
+The Curate tab uses the NVIDIA Clara NV-Curate-CTMR-v2 model for automatic 3D
+segmentation.
 
-2. Cinematic Volume Rendering: Create beautiful renderings and gain new insights
-   into your data with only a few clicks.  VolView provides three cinematic
-volume rendering modes and intuitive controls for each.  We've also provides
-simple ways to control lighting and multiple presets to get you started.
+- What it does: Automatically identifies and segments anatomical structures
+  within a loaded 3D CT or MR volume.
+- How to use:
+  - Load a compatible 3D dataset.
+  - Navigate to the "Curate" tab.
+  - Click "Run Segmentation".
+- Output: A new segmentation layer is added to the scene with labeled anatomical
+  structures.
+- Parameters: This is a zero-shot model with no user-configurable parameters in
+  the UI.
 
-3. Annotations and measures: We have provided a small set of tools for painting,
-   measuring, and cropping, and that toolset will be rapidly expanding.  If you
-have suggestions for new tools or for improving VolView in general, please leave
-feedback at our [Issue Tracker](https://github.com/Kitware/VolView/issues).
+### Reason Tab (Multimodal Chat)
 
-4. Simple, Scalable, and Secure: Simply visit a website to install VolView.
-   Once it is running, all data handling, processing, and visualization occurs
-on your machine.  Data you load into VolView never leaves your machine.  And
-VolView is designed to run on any web browser: from the one on your phone to the
-one running on your most powerful workstations.  It will take advantage of local
-GPU resources to accelerate its rendering processes, but if none is available,
-it will still generate the same high quality renderings, albeit a bit slower.
+The Reason tab integrates a multimodal chatbot powered by the NVIDIA Clara
+NV-Reason-CXR-3B model.
 
-5. A foundation for the future: VolView is meant to serve as a foundation for
-   your future projects and products.  It is open-source and free for commercial
-and academic use.  You may modify it yourself, or Kitware can help you customize
-it to support client-server workflows, provide streamlined interfaces and tools,
-and carry your brand.
+- What it does: Allows text-based conversation about the loaded medical image.
+  Ask it to identify findings, describe features, or answer questions.
+- How to use:
+  - Load an image.
+  - Navigate to the "Reason" tab.
+  - Type your question into the message box and send.
+- Output: The model's text response appears in the chat window.
+- Parameters: The primary input is the text prompt. Different chat models can be
+  selected from the dropdown menu.
 
-## Documentation
+### Generate Tab (Synthetic Data Generation)
 
-Visit: https://kitware.github.io/VolView to read the documentation.
+The Generate tab uses the NVIDIA Clara NV-Generate-CTMR-v2 model to create
+synthetic 3D CT scans.
 
-# Citation
+- What it does: Generates a new, realistic 3D CT volume based on user-defined
+  parameters.
+- How to use:
+  - Navigate to the "Generate" tab.
+  - Configure the desired parameters.
+  - Click "Generate CT Scan".
+- Output: A new 3D volume is generated and loaded into VolView.
+- Parameters:
+  - Body Region: Choose between 'Abdomen' or 'Chest'.
+  - Anatomy Part: Select a specific primary organ (e.g., 'liver', 'spleen',
+    'aorta').
+  - Resolution:
+    - XY Resolution: Set the resolution for the axial plane (256 or 512).
+    - Z Resolution: Set the number of slices in the volume (128, 256, or 512).
+  - Spacing (mm):
+    - Coronal/Sagittal Spacing: Adjust pixel spacing in X and Y.
+    - Axial Spacing: Adjust slice spacing in Z.
+    > Note: For 512 XY resolution, spacing is locked to 1mm.
 
-If you find VolView to be useful for your work, please cite our paper on
-cinematic rendering:
-
-[Jiayi Xu, Gaspard Thevenon, Timothee Chabat, Matthew McCormick, Forrest Li,Tom
-Birdsong,Ken Martin, Yueh Lee, and Stephen Aylward, "Interactive, in-browser
-cinematic volume rendering of medical images", MICCAI 2022 AE-CAI Workshop,
-Singapore, Sept 19, 2022, Journal version accepted for publication in Computer
-Methods in Computer Methods in Biomechanics and Biomedical
-Engineering](https://workshops.ap-lab.ca/aecai2022/wp-content/uploads/sites/10/2022/09/Paper48_IICVR_camera_ready_paper.pdf): 
-
-To include a reference to the source code of VolView 4.0, please use this DOI:
-[![DOI](https://zenodo.org/badge/248073292.svg)](https://zenodo.org/badge/latestdoi/248073292)
-
-# Customizing VolView
-
-See the [Contributing.md](CONTRIBUTING.md) document.
-
-# Acknowledgements
-
-This work was funded, in part, by the NIH via NIBIB and NIGMS R01EB021396, NIBIB
-R01EB014955, NCI R01CA220681, and NINDS R42NS086295.
+---
