@@ -151,7 +151,9 @@ You configure VolView to point to each server via the configuration icon:
 icon](./docs/assets/volview-server-config-1.png)
 
 Then, you point each of the servers to the machines running the Python servers
-by modifying the links below:
+by modifying the links. In the example below, Curate and Reason are being run on
+my machine, but Generate is being run on `10.50.56.30` on port `9003`, which is
+a cluster accessible on my local intranet:
 
 ![A screenshot of the configuration
 icon](./docs/assets/volview-server-config-2.png)
