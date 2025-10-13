@@ -1,91 +1,82 @@
 # VolView + NVIDIA Integration for GTC 2025
 
-This repository is a fork of [Kitware's
-VolView](https://github.com/Kitware/VolView) customized to showcase VolView's
-extensibility with cutting-edge healthcare models from NVIDIA.
+This repository showcases an enhanced version of [**Kitware's
+VolView**](https://github.com/Kitware/VolView), extended with cutting-edge
+healthcare foundation models from **NVIDIA Clara**.
 
----
+This special build integrates three powerful AI capabilities into the VolView
+interface, each running on a scalable, independent backend server. For general
+VolView features, please see the [official
+repository](https://github.com/Kitware/VolView).
 
-## Overview
+## NVIDIA Clara Features
 
-This fork integrates three NVIDIA Clara foundation models into the VolView
-interface, each accessible via a dedicated tab. Each of the models are connected
-to VolView via compute-independent and scalable backend servers.
+This version of VolView adds three new tabs: **Curate**, **Reason**, and
+**Generate**.
 
-For general VolView features, documentation, and issue tracking, please refer to
-the official [Kitware/VolView repository](https://github.com/Kitware/VolView).
-This README focuses exclusively on the NVIDIA integrations.
+### 🧠 Curate (Segmentation)
 
----
+The Curate tab uses the **NVIDIA Clara NV-Curate-CTMR-v2** model to perform
+automatic 3D segmentation of anatomical structures.
 
-## NVIDIA Clara Model Integration
+* **How to Use:**
 
-This version of VolView includes three additional tabs: Curate, Reason, and
-Generate.
+  1. Load a compatible 3D CT or MR dataset.
 
-### Curate Tab (Segmentation)
+  2. Navigate to the **Curate** tab.
 
-The Curate tab uses the NVIDIA Clara NV-Curate-CTMR-v2 model for automatic 3D
-segmentation.
+  3. Click **Run Segmentation**.
 
-- What it does: Automatically identifies and segments anatomical structures
-  within a loaded 3D CT or MR volume.
-- How to use:
-  - Load a compatible 3D dataset.
-  - Navigate to the "Curate" tab.
-  - Click "Run Segmentation".
-- Output: A new segmentation layer is added to the scene with labeled anatomical
-  structures.
-- Parameters: This is a zero-shot model with no user-configurable parameters in
-  the UI.
+* **Output:** A new segmentation layer is automatically added to the scene.
 
-### Reason Tab (Multimodal Chat)
+![A screenshot of the Curate tab showing a segmented
+CT](docs/assets/curate_tab_example.jpeg)
 
-The Reason tab integrates a multimodal chatbot powered by the NVIDIA Clara
-NV-Reason-CXR-3B model.
+### 💬 Reason (Multimodal Chat)
 
-- What it does: Allows text-based conversation about the loaded medical image.
-  Ask it to identify findings, describe features, or answer questions.
-- How to use:
-  - Load an image.
-  - Navigate to the "Reason" tab.
-  - Type your question into the message box and send.
-- Output: The model's text response appears in the chat window.
-- Parameters: The primary input is the text prompt. Different chat models can be
-  selected from the dropdown menu.
+The Reason tab integrates a multimodal chatbot powered by the **NVIDIA Clara
+NV-Reason-CXR-3B** model, allowing you to have a text-based conversation about
+the loaded medical image.
 
-### Generate Tab (Synthetic Data Generation)
+* **How to Use:**
 
-The Generate tab uses the NVIDIA Clara NV-Generate-CTMR-v2 model to create
-synthetic 3D CT scans.
+  1. Load a medical image.
 
-- What it does: Generates a new, realistic 3D CT volume based on user-defined
-  parameters.
-- How to use:
-  - Navigate to the "Generate" tab.
-  - Configure the desired parameters.
-  - Click "Generate CT Scan".
-- Output: A new 3D volume is generated and loaded into VolView.
-- Parameters:
-  - Body Region: Choose between 'Abdomen' or 'Chest'.
-  - Anatomy Part: Select a specific primary organ (e.g., 'liver', 'spleen',
-    'aorta').
-  - Resolution:
-    - XY Resolution: Set the resolution for the axial plane (256 or 512).
-    - Z Resolution: Set the number of slices in the volume (128, 256, or 512).
-  - Spacing (mm):
-    - Coronal/Sagittal Spacing: Adjust pixel spacing in X and Y.
-    - Axial Spacing: Adjust slice spacing in Z.
-    > Note: For 512 XY resolution, spacing is locked to 1mm.
+  2. Navigate to the **Reason** tab and select **Clara NV-Reason-CXR-3B**.
 
----
+  3. Type your question (e.g., "Are there any visible fractures?") into the
+     chat box.
 
-## Setting up VolView w/ NVIDIA Models
+* **Output:** The model's text response appears directly in the chat window.
 
-### Start Front-End Server
+![A screenshot of the Reason tab with an active chat
+session](docs/assets/reason_tab_example.jpeg)
 
-VolView is served as a Node.js web app. To serve the web app, in the project
-root, run the following:
+### 🎲 Generate (Synthetic Data)
+
+The Generate tab uses the **NVIDIA Clara NV-Generate-CTMR-v2** model to create
+synthetic 3D CT scans based on your specifications.
+
+* **How to Use:**
+
+  1. Navigate to the **Generate** tab.
+
+  2. Configure the desired parameters (body region, anatomy, resolution, etc.).
+
+  3. Click **Generate CT Scan**.
+
+* **Output:** A new, realistic 3D volume is generated and loaded into VolView.
+
+![A screenshot of a synthetically generated CT scan in
+VolView](docs/assets/generate_tab_example.jpeg)
+
+## 🚀 Getting Started
+
+Follow these steps to set up the front-end and back-end services.
+
+### 1. Run the Front-End (VolView)
+
+The VolView interface is a Node.js web app. From the project root, run:
 
 ```sh
 npm install
@@ -93,75 +84,54 @@ npm run build
 npm run serve
 ```
 
-Then, you should be able to use the web app by connecting to
-`http://localhost:5174/` if run on your local machine (note: if the port is
-used, VITE will serve on a different port).
+You can now access the VolView interface at `http://localhost:5174`.
 
-> If you run `npm run serve --host`, the web app should be accessible via any
-> device (e.g. mobile phone) at `http://:machineIp:5174/`, as long as
-> `machineIp` is routable.
+> **Tip:** Use `npm run serve --host` to make the app accessible from other
+> devices on your local network.
 
-### Start Back-End Servers
+### 2. Run the Back-End (NVIDIA Models)
 
-The "back-end" refers to the NVIDIA models to be run on independent,
-scalable machines. They can also be run on the same machine. The application
-code assumes that:
-
-- "Server 1" is running the "Curate" segmentation model.
-- "Server 2" is running the "Reason" reasoning model.
-- "Server 3" is running the "Generate" 3D CT generation model.
-
-#### Curate
-
-To start the python server running the "Curate" segmentation model on port
-`4014`:
+Each NVIDIA model runs in its own Python server. From the `server` directory,
+install dependencies and launch each service in a separate terminal.
 
 ```sh
 cd server
 poetry install
-poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/vista3d.py
 ```
 
-#### Reason
+* **Curate (Segmentation)**
 
-To start the python server running the "Reason" reasoning model on port `4015`:
+  ```ph
+  poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/vista3d.py
+  ```
 
-```sh
-cd server
-poetry install
-poetry run python -m volview_server -P 4015 -H 0.0.0.0 2025_nvidiagtcdc/chat.py
-```
+* **Reason (Chat)**
 
-#### Generate
+  ```sh
+  poetry run python -m volview_server -P 4015 -H 0.0.0.0 2025_nvidiagtcdc/chat.py
+  ```
 
-To start the python server running the "Generate" 3D CT generation model on port
-`4016`:
+* **Generate (Synthetic Data)**
 
-```sh
-cd server
-poetry install
-poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/maisi.py
-```
+  ```sh
+  poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/maisi.py
+  ```
 
-### Connecting Front-End to Back-End
+### 3. Connect Front-End to Back-End
 
-You configure VolView to point to each server via the configuration icon:
+Finally, connect the VolView front-end to your running model servers.
 
-![A screenshot of the configuration
-icon](./docs/assets/volview-server-config-1.png)
+1. In the VolView UI, click the **Settings (gear) icon** to open the server
+   configuration panel.
 
-Then, you point each of the servers to the machines running the Python servers
-by modifying the links. In the example below, Curate and Reason are being run on
-my machine, but Generate is being run on `10.50.56.30` on port `9003`, which is
-a cluster accessible on my local intranet:
+   ![A screenshot of the settings icon in the VolView
+   UI](docs/assets/volview-server-config-1.png)
 
-![A screenshot of the configuration
-icon](./docs/assets/volview-server-config-2.png)
+2. Update the URL for each service to point to the correct IP address and port
+   where your Python servers are running. The panel will show a "Connected"
+   status for each successful connection.
 
-For each server, you can independently try "connect" and the configuration
-interface will inform you if the server is connected. By default, the servers
-are all configured to be run on localhost on different ports, but you can
-replace the links with arbitrary machines and arbitrary ports, given that you
-have run the server on the appropriate corresponding port above.
+   ![A screenshot of the server configuration panel in
+   VolView](docs/assets/volview-server-config-2.png)
 
----
+That's it! You are now ready to use the integrated NVIDIA models within VolView.
