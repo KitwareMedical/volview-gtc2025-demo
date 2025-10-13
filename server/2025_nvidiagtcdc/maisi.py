@@ -43,6 +43,7 @@ def do_maisi_generation(params: dict) -> Dict:
         python_executable = sys.executable
         output_dir = os.path.join(tmpdir, "output")
         os.makedirs(output_dir, exist_ok=True)
+        bundle_root = os.path.join(MAISI_BUNDLE_DIR, MAISI_BUNDLE_NAME)
 
         # 1. Download the MONAI Bundle if necessary
         print("MONAI: Ensuring MAISI bundle is downloaded...")
@@ -53,9 +54,8 @@ def do_maisi_generation(params: dict) -> Dict:
         subprocess.run(download_command, check=True, capture_output=True, text=True)
         print("MONAI: Bundle is ready.")
 
-        # 2. Execute generation
-        bundle_root = os.path.join(MAISI_BUNDLE_DIR, MAISI_BUNDLE_NAME)
-        config_file_path = os.path.join(bundle_root, "configs", "inference.json")
+        # 2. Execute generation. Note, the config must be relative to cwd, which is set below
+        config_file_path = os.path.join("configs", "inference.json")
         
         print(f"MONAI: Running MAISI generation with params: {params}...")
         
@@ -87,12 +87,26 @@ def do_maisi_generation(params: dict) -> Dict:
 
         print(f"MONAI: Executing command: {' '.join(inference_command)}")
 
-        result = subprocess.run(
-            inference_command,
-            cwd=bundle_root,
-            check=True,
-            capture_output=True, text=True
-        )
+        try:
+            result = subprocess.run(
+                inference_command,
+                cwd=bundle_root,
+                check=True,
+                capture_output=True, text=True
+            )
+        except subprocess.CalledProcessError as e:
+            # **MODIFICATION:** Instead of printing, format a detailed error message.
+            error_message = (
+                f"\n--- MONAI Subprocess Failed ---\n"
+                f"Return Code: {e.returncode}\n"
+                f"\n--- STDOUT ---\n{e.stdout}\n"
+                f"\n--- STDERR ---\n{e.stderr}\n"
+                f"-----------------------------"
+            )
+            # Raise a new exception that contains the formatted message.
+            # This will be sent back to the main process.
+            raise Exception(error_message)
+
         print("MONAI STDOUT:", result.stdout)
         if result.stderr:
             print("MONAI STDERR:", result.stderr)
