@@ -79,3 +79,87 @@ synthetic 3D CT scans.
     > Note: For 512 XY resolution, spacing is locked to 1mm.
 
 ---
+
+## Setting up VolView w/ NVIDIA Models
+
+### Start Front-End Server
+
+VolView is served as a Node.js web app. To serve the web app, in the project
+root, run the following:
+
+```sh
+npm install
+npm run build
+npm run serve
+```
+
+Then, you should be able to use the web app by connecting to
+`http://localhost:5174/` if run on your local machine (note: if the port is
+used, VITE will serve on a different port).
+
+> If you run `npm run serve --host`, the web app should be accessible via any
+> device (e.g. mobile phone) at `http://:machineIp:5174/`, as long as
+> `machineIp` is routable.
+
+### Start Back-End Servers
+
+The "back-end" refers to the NVIDIA models to be run on independent,
+scalable machines. They can also be run on the same machine. The application
+code assumes that:
+
+- "Server 1" is running the "Curate" segmentation model.
+- "Server 2" is running the "Reason" reasoning model.
+- "Server 3" is running the "Generate" 3D CT generation model.
+
+#### Curate
+
+To start the python server running the "Curate" segmentation model on port
+`4014`:
+
+```sh
+cd server
+poetry install
+poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/vista3d.py
+```
+
+#### Reason
+
+To start the python server running the "Reason" reasoning model on port `4015`:
+
+```sh
+cd server
+poetry install
+poetry run python -m volview_server -P 4015 -H 0.0.0.0 2025_nvidiagtcdc/chat.py
+```
+
+#### Generate
+
+To start the python server running the "Generate" 3D CT generation model on port
+`4016`:
+
+```sh
+cd server
+poetry install
+poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/maisi.py
+```
+
+### Connecting Front-End to Back-End
+
+You configure VolView to point to each server via the configuration icon:
+
+![A screenshot of the configuration
+icon](./docs/assets/volview-server-config-1.png)
+
+Then, you point each of the servers to the machines running the Python servers
+by modifying the links below:
+
+![A screenshot of the configuration
+icon](./docs/assets/volview-server-config-2.png)
+
+For each server, you can independently try "connect" and the configuration
+interface will inform you if the server is connected. By default, the servers
+are all configured to be run on localhost on different ports, but you can
+replace the links with arbitrary machines and arbitrary ports, given that you
+have run the server on the appropriate corresponding port above.
+
+---
