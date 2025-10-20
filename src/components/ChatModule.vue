@@ -62,6 +62,7 @@ const chatHistories = ref<Record<ModelName, Message[]>>(
 );
 const newMessage = ref('');
 const isTyping = ref(false);
+const isInfoDialogVisible = ref(false); // State for the info dialog
 
 // --- Computed Properties ---
 const isConnected = computed(
@@ -173,122 +174,83 @@ const sendMessage = async () => {
 
           <v-menu offset-y>
             <template #activator="{ props }">
-              <v-btn
-                v-bind="props"
-                variant="tonal"
-                color="primary"
-                size="small"
-                class="mr-2"
-              >
+              <v-btn v-bind="props" variant="tonal" color="primary" size="small" class="mr-2">
                 {{ selectedModel }}
                 <v-icon end>mdi-menu-down</v-icon>
               </v-btn>
             </template>
             <v-list dense>
-              <v-list-item
-                v-for="model in AVAILABLE_MODELS"
-                :key="model"
-                @click="selectModel(model)"
-                :active="model === selectedModel"
-              >
+              <v-list-item v-for="model in AVAILABLE_MODELS" :key="model" @click="selectModel(model)"
+                :active="model === selectedModel">
                 <v-list-item-title>{{ model }}</v-list-item-title>
               </v-list-item>
             </v-list>
           </v-menu>
 
-          <v-btn
-            icon="mdi-delete-sweep"
-            variant="text"
-            @click="resetAllChats"
-            size="small"
-          >
+          <v-btn icon variant="text" @click="resetAllChats" size="small">
+            <v-icon>mdi-delete-sweep</v-icon>
             <v-tooltip activator="parent" location="bottom">
               Clear All Chats
+            </v-tooltip>
+          </v-btn>
+
+          <v-btn icon variant="text" @click="isInfoDialogVisible = true" size="small">
+            <v-icon>mdi-information-outline</v-icon>
+            <v-tooltip activator="parent" location="bottom">
+              View Model Info
             </v-tooltip>
           </v-btn>
         </v-card-title>
         <v-divider />
 
-        <NVIDIAModelCard
-          v-if="selectedModel === 'Clara NV-Reason-CXR-3B'"
-          :model-name="mistyCard.modelName"
-          :subtitle="mistyCard.subtitle"
-          :icon="mistyCard.icon"
-          :chips="mistyCard.chips"
-          :description="mistyCard.description"
-          :details="mistyCard.details"
-          class="ma-2"
-        />
+        <div v-if="currentMessages.length === 0">
+          <NVIDIAModelCard v-if="selectedModel === 'Clara NV-Reason-CXR-3B'" :model-name="mistyCard.modelName"
+            :subtitle="mistyCard.subtitle" :icon="mistyCard.icon" :chips="mistyCard.chips"
+            :description="mistyCard.description" :details="mistyCard.details" class="ma-2" />
+        </div>
       </div>
 
       <v-card-text class="chat-log flex-grow-1">
-        <div
-          v-for="message in currentMessages"
-          :key="message.id"
-          :class="[
-            'd-flex',
-            message.sender === 'user' ? 'justify-end' : 'justify-start',
-          ]"
-          class="mb-4"
-        >
+        <div v-for="message in currentMessages" :key="message.id" :class="[
+          'd-flex',
+          message.sender === 'user' ? 'justify-end' : 'justify-start',
+        ]" class="mb-4">
           <div :class="['message-bubble', `message-${message.sender}`]">
-            <div
-              v-if="message.sender === 'bot'"
-              v-html="md.render(message.text)"
-            ></div>
+            <div v-if="message.sender === 'bot'" v-html="md.render(message.text)"></div>
             <div v-else class="message-text-user">{{ message.text }}</div>
           </div>
         </div>
       </v-card-text>
 
       <div class="flex-shrink-0">
-        <v-progress-linear
-          v-if="isTyping"
-          indeterminate
-          color="primary"
-        ></v-progress-linear>
-
+        <v-progress-linear v-if="isTyping" indeterminate color="primary"></v-progress-linear>
         <v-card-text class="pa-3">
           <div class="text-caption text-medium-emphasis mb-2">Suggested prompts:</div>
           <div class="d-flex flex-wrap ga-2">
-            <v-chip
-              v-for="(prompt, index) in SUGGESTED_PROMPTS"
-              :key="index"
-              @click="useSuggestedPrompt(prompt)"
-              variant="outlined"
-              size="small"
-              class="suggested-prompt-chip"
-            >
+            <v-chip v-for="(prompt, index) in SUGGESTED_PROMPTS" :key="index" @click="useSuggestedPrompt(prompt)"
+              variant="outlined" size="small" class="suggested-prompt-chip">
               {{ prompt }}
             </v-chip>
           </div>
         </v-card-text>
-
         <v-card-actions class="pa-4">
-          <v-text-field
-            v-model="newMessage"
-            @keydown.enter.prevent="sendMessage"
-            @keydown.stop
-            :disabled="isInputDisabled"
-            :label="inputPlaceholder"
-            variant="solo"
-            hide-details
-            clearable
-            rounded
-          >
+          <v-text-field v-model="newMessage" @keydown.enter.prevent="sendMessage" @keydown.stop
+            :disabled="isInputDisabled" :label="inputPlaceholder" variant="solo" hide-details clearable rounded>
             <template #append-inner>
-              <v-btn
-                @click="sendMessage"
-                :disabled="isInputDisabled || !newMessage"
-                icon="mdi-send"
-                variant="text"
-                color="primary"
-              ></v-btn>
+              <v-btn @click="sendMessage" :disabled="isInputDisabled || !newMessage" icon variant="text"
+                color="primary">
+                <v-icon>mdi-send</v-icon>
+              </v-btn>
             </template>
           </v-text-field>
         </v-card-actions>
       </div>
     </v-card>
+
+    <v-dialog v-model="isInfoDialogVisible" max-width="600">
+      <NVIDIAModelCard :model-name="mistyCard.modelName" :subtitle="mistyCard.subtitle" :icon="mistyCard.icon"
+        :chips="mistyCard.chips" :description="mistyCard.description" :details="mistyCard.details" />
+    </v-dialog>
   </div>
 </template>
 
@@ -301,7 +263,8 @@ const sendMessage = async () => {
 .message-bubble {
   padding: 10px 16px;
   border-radius: 18px;
-  max-width: 85%; /* Adjusted for potentially narrower sidebars */
+  max-width: 85%;
+  /* Adjusted for potentially narrower sidebars */
   line-height: 1.5;
   word-wrap: break-word;
 }
@@ -325,17 +288,21 @@ const sendMessage = async () => {
 .message-bot :deep(p) {
   margin-bottom: 0.5em;
 }
+
 .message-bot :deep(p:last-child) {
   margin-bottom: 0;
 }
+
 .message-bot :deep(ul),
 .message-bot :deep(ol) {
   padding-left: 20px;
   margin-bottom: 0.5em;
 }
+
 .message-bot :deep(li) {
   margin-bottom: 0.25em;
 }
+
 .message-bot :deep(strong) {
   font-weight: 600;
 }
