@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useServerStore, ConnectionState } from '@/src/store/server-3';
 import { useMAISIStore } from '@/src/store/maisi';
 import { useImageStore } from '@/src/store/datasets-images';
+import { useDatasetStore } from '@/src/store/datasets';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtk from '@kitware/vtk.js/vtk';
 import NVIDIAModelCard from './NVIDIAModelCard.vue';
@@ -10,6 +11,7 @@ import NVIDIAModelCard from './NVIDIAModelCard.vue';
 const serverStore = useServerStore();
 const maisiStore = useMAISIStore();
 const imageStore = useImageStore();
+const datasetStore = useDatasetStore();
 
 const { client } = serverStore;
 const ready = computed(
@@ -107,8 +109,9 @@ const doGenerateWithMAISI = async () => {
     // Convert the plain JS object from the store into a vtkImageData object
     const generatedImageData = vtk(generatedImageObject) as vtkImageData;
 
-    // Add the generated data as a new image layer
-    imageStore.addVTKImageData('MAISI Generated CT', generatedImageData);
+    // get new image id and set
+    const newImageId = imageStore.addVTKImageData('MAISI Generated CT', generatedImageData);
+    datasetStore.setPrimarySelection(newImageId);
 
     // Clean up the result from the temporary store
     maisiStore.removeMAISIResult(generationId);
