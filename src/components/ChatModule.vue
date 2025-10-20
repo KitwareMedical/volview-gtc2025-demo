@@ -14,6 +14,14 @@ const TARGET_VIEW_ID = 'Axial';
 const AVAILABLE_MODELS = ['Clara NV-Reason-CXR-3B'] as const;
 type ModelName = (typeof AVAILABLE_MODELS)[number];
 
+/** Suggested prompts for quick access */
+const SUGGESTED_PROMPTS = [
+  'Provide a comprehensive image analysis, and list all abnormalities.',
+  'Provide differentials',
+  'Write a structured report',
+] as const;
+
+
 // --- Store and Composables Setup ---
 const backendModelStore = useBackendModelStore();
 const serverStore = useServerStore();
@@ -99,6 +107,13 @@ const appendMessage = (text: string, sender: 'user' | 'bot') => {
   chatHistories.value[model].push({ id: Date.now(), text, sender });
 };
 
+/**
+ * Sets the input field to the selected suggested prompt.
+ */
+const useSuggestedPrompt = (prompt: string) => {
+  newMessage.value = prompt;
+};
+
 const sendMessage = async () => {
   if (isInputDisabled.value) return;
 
@@ -110,7 +125,19 @@ const sendMessage = async () => {
   isTyping.value = true;
 
   try {
-    const payload = { prompt: text };
+    // Convert chat history to the format expected by the backend
+    // Format: [{ role: 'user' | 'assistant', content: string }, ...]
+    const history = currentMessages.value.map((msg) => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text,
+    }));
+
+    // Define the complete payload with prompt and history
+    const payload = {
+      prompt: text,
+      history,
+    };
+
     backendModelStore.setAnalysisInput(currentImageID.value, payload);
 
     await client.call('multimodalLlmAnalysis', [
@@ -220,6 +247,23 @@ const sendMessage = async () => {
           indeterminate
           color="primary"
         ></v-progress-linear>
+
+        <v-card-text class="pa-3">
+          <div class="text-caption text-medium-emphasis mb-2">Suggested prompts:</div>
+          <div class="d-flex flex-wrap ga-2">
+            <v-chip
+              v-for="(prompt, index) in SUGGESTED_PROMPTS"
+              :key="index"
+              @click="useSuggestedPrompt(prompt)"
+              variant="outlined"
+              size="small"
+              class="suggested-prompt-chip"
+            >
+              {{ prompt }}
+            </v-chip>
+          </div>
+        </v-card-text>
+
         <v-card-actions class="pa-4">
           <v-text-field
             v-model="newMessage"
@@ -294,5 +338,15 @@ const sendMessage = async () => {
 }
 .message-bot :deep(strong) {
   font-weight: 600;
+}
+
+.suggested-prompt-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggested-prompt-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
