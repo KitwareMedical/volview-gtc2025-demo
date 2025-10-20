@@ -27,7 +27,7 @@ def get_model_and_processor() -> Tuple[AutoModelForImageTextToText, AutoProcesso
 
     return _model_cache
 
-def run_volview_insight_clara_nv_reason_cxr_3b_inference(input_data: Dict[str, Any], itk_img: itk.Image) -> str:
+def run_nv_reason_cxr_inference(input_data: Dict[str, Any], itk_img: itk.Image) -> str:
     """
     Runs inference using the local nvidia-reason-cxr-3b model on a chest X-ray.
     This version automatically detects and uses available hardware (GPU or CPU).

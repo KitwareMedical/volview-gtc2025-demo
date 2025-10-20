@@ -47,9 +47,9 @@ import DataBrowser from './DataBrowser.vue';
 import RenderingModule from './RenderingModule.vue';
 import AnnotationsModule from './AnnotationsModule.vue';
 // import ServerModule from './ServerModule.vue';
-import Vista3DModule from './Vista3DModule.vue';
-import ChatModule from './ChatModule.vue';
-import MAISIModule from './MAISIModule.vue';
+import NVSegmentCTModule from './NVSegmentCTModule.vue';
+import NVReasonCXRModule from './NVReasonCXRModule.vue';
+import NVGenerateCTModule from './NVGenerateCTModule.vue';
 import ProbeView from './ProbeView.vue';
 import { useToolStore } from '../store/tools';
 import { Tools } from '../store/tools/types';
@@ -68,19 +68,19 @@ const Modules: Module[] = [
     component: DataBrowser,
   },
   {
-    name: 'Curate',
+    name: 'Segment',
     icon: 'brain',
-    component: Vista3DModule,
+    component: NVSegmentCTModule,
   },
   {
     name: 'Reason',
     icon: 'chat',
-    component: ChatModule,
+    component: NVReasonCXRModule,
   },
   {
     name: 'Generate',
     icon: 'magic-staff',
-    component: MAISIModule,
+    component: NVGenerateCTModule,
   },
   {
     name: 'Annotations',

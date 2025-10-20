@@ -5,7 +5,7 @@ from typing import Any, Dict
 import itk
 
 from volview_insight_medgemma_inference import run_volview_insight_medgemma_inference
-from volview_insight_clara_nv_reason_cxr_3b_inference import run_volview_insight_clara_nv_reason_cxr_3b_inference
+from nv_reason_cxr_inference import run_nv_reason_cxr_inference
 from volview_server import VolViewApi, get_current_client_store
 from volview_server.transformers import (
     convert_itk_to_vtkjs_image,
@@ -74,7 +74,7 @@ def do_medgemma_inference(serialized_img: Dict[str, Any], analysis_input: Dict )
 def do_clara_nv_reason_cxr_3b_inference(serialized_img: Dict[str, Any], analysis_input: Dict) -> str:
     """Runs Clara NV-Reason-CXR-3B inference."""
     itk_img = convert_vtkjs_to_itk_image(serialized_img)
-    response = run_volview_insight_clara_nv_reason_cxr_3b_inference(
+    response = run_nv_reason_cxr_inference(
         input_data=analysis_input, itk_img=itk_img
     )
     return response
