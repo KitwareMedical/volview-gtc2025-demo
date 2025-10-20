@@ -11,7 +11,7 @@ import NVIDIAModelCard from './NVIDIAModelCard.vue';
 
 // --- Configuration ---
 const TARGET_VIEW_ID = 'Axial';
-const AVAILABLE_MODELS = ['MedGemma', 'Clara NV-Reason-CXR-3B'] as const;
+const AVAILABLE_MODELS = ['Clara NV-Reason-CXR-3B'] as const;
 type ModelName = (typeof AVAILABLE_MODELS)[number];
 
 // --- Store and Composables Setup ---

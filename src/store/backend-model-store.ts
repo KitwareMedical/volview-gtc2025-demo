@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia';
 
 /**
- * Interface for the MedGemma store's state.
+ * Interface for the backend model (multimodal language model) store's state.
  */
 interface State {
   selectedModel: string; // The currently selected backend model
   analysisIdList: string[]; // list of analysis ids
   analysisInput: Record<string, Record<string, any>>; // inputs are string-to-array-of-numbers dictionaries
-  analysisOutput: Record<string, string | null>; // output is a string (e.g., the result of MedGemma)
+  analysisOutput: Record<string, string | null>; // output is a string (e.g., the result of Chatbot)
 }
 
 export const useBackendModelStore = defineStore('backend-model-store', {
@@ -15,7 +15,7 @@ export const useBackendModelStore = defineStore('backend-model-store', {
    * Defines the initial state of the store.
    */
   state: (): State => ({
-    selectedModel: 'MedGemma', // Default model on initialization
+    selectedModel: 'Clara NV-Reason-CXR-3B', // Default model on initialization
     analysisIdList: [],
     analysisInput: Object.create(null),
     analysisOutput: Object.create(null),
@@ -50,7 +50,7 @@ export const useBackendModelStore = defineStore('backend-model-store', {
 
     /**
      * Stores the result of the analysis.
-     * @param result - A string representing the MedGemma model's output.
+     * @param result - A string representing the chatbot model's output.
      */
     setAnalysisResult(id: string, result: string) {
       this.analysisOutput[id] = result;
