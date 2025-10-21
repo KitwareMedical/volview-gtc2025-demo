@@ -4,7 +4,6 @@ from typing import Any, Dict
 
 import itk
 
-from volview_insight_medgemma_inference import run_volview_insight_medgemma_inference
 from nv_reason_cxr_inference import run_nv_reason_cxr_inference
 from volview_server import VolViewApi, get_current_client_store
 from volview_server.transformers import (
@@ -55,22 +54,6 @@ def get_image_slice(img: itk.Image, active_layer: int | None = None) -> itk.Imag
     
     return slice_2d
 
-def do_medgemma_inference(serialized_img: Dict[str, Any], analysis_input: Dict ) -> str:
-    """Runs medGemma inference
-
-    Args:
-        serialized_img: The serialized ITK image (vtkjs format).
-        analysis input: Dictionary containing the user query and parsed FHIR resource data
-
-    Returns:
-        The serialized text
-
-    """
-    itk_img = convert_vtkjs_to_itk_image(serialized_img)
-    medgemma_response = run_volview_insight_medgemma_inference(input_data = analysis_input, itk_img = itk_img)
-
-    return medgemma_response
-
 def do_clara_nv_reason_cxr_3b_inference(serialized_img: Dict[str, Any], analysis_input: Dict) -> str:
     """Runs Clara NV-Reason-CXR-3B inference."""
     itk_img = convert_vtkjs_to_itk_image(serialized_img)
@@ -80,7 +63,6 @@ def do_clara_nv_reason_cxr_3b_inference(serialized_img: Dict[str, Any], analysis
     return response
 
 INFERENCE_DISPATCH = {
-    "MedGemma": do_medgemma_inference,
     "Clara NV-Reason-CXR-3B": do_clara_nv_reason_cxr_3b_inference,
 }
 
