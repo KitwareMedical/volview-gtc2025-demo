@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useServerStore, ConnectionState } from '@/src/store/server-3';
-import { useMAISIStore } from '@/src/store/maisi';
+import { useNVGenerateStore } from '@/src/store/nv-generate';
 import { useImageStore } from '@/src/store/datasets-images';
 import { useDatasetStore } from '@/src/store/datasets';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
@@ -9,7 +9,7 @@ import vtk from '@kitware/vtk.js/vtk';
 import NVIDIAModelCard from './NVIDIAModelCard.vue';
 
 const serverStore = useServerStore();
-const maisiStore = useMAISIStore();
+const nvGenerateStore = useNVGenerateStore();
 const imageStore = useImageStore();
 const datasetStore = useDatasetStore();
 
@@ -99,7 +99,7 @@ const doGenerateWithMAISI = async () => {
       spacing: [coronalSagittalSpacing.value, coronalSagittalSpacing.value, axialSpacing.value]
     };
     await client.call('generateWithMAISI', [generationId, params]);
-    const generatedImageObject = maisiStore.getMAISIResult(generationId);
+    const generatedImageObject = nvGenerateStore.getNVGenerateResult(generationId);
 
     if (!generatedImageObject) {
       console.error(`No MAISI data found for generation ID: ${generationId}`);
@@ -114,7 +114,7 @@ const doGenerateWithMAISI = async () => {
     datasetStore.setPrimarySelection(newImageId);
 
     // Clean up the result from the temporary store
-    maisiStore.removeMAISIResult(generationId);
+    nvGenerateStore.removeNVGenerateResult(generationId);
 
     console.log('MAISI CT Scan successfully generated and loaded!');
   } catch (error) {

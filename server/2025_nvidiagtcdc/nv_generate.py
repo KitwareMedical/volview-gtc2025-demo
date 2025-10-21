@@ -166,8 +166,8 @@ async def run_maisi_generation(generation_id: str, params: dict):
     
     generation_result_obj = await run_monai_generation_process(params)
 
-    maisi_store = get_current_client_store("maisi")
-    await maisi_store.setMAISIResult(generation_id, generation_result_obj)
+    nv_generate_store = get_current_client_store("nv-generate")
+    await nv_generate_store.setNVGenerateResult(generation_id, generation_result_obj)
 
     print("Successfully created CT. Sending object back to client.")
     return 0
