@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Tuple
 
 # Global model cache to avoid reloading on every inference
 _model_cache: Optional[Tuple[AutoModelForImageTextToText, AutoProcessor]] = None
-_model_path = "/Users/andrew.howe/projects/vvi/2025-nvidiagtcdc-vvi/server/2025_nvidiagtcdc/models/nvidia-reason-cxr-3b"
+_model_path = "<Replace this path with /path/to/nvidia-reason-cxr-3b/model/weights/directory>"
 
 def get_model_and_processor() -> Tuple[AutoModelForImageTextToText, AutoProcessor]:
     """Load and cache the model and processor. Reuses cached instances if available."""
