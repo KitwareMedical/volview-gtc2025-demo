@@ -84,7 +84,7 @@ npm run build
 npm run serve
 ```
 
-You can now access the VolView interface at `http://localhost:5174`.
+You can now access the VolView interface at `http://localhost:5173`.
 
 > **Tip:** Use `npm run serve --host` to make the app accessible from other
 > devices on your local network.
@@ -102,7 +102,7 @@ poetry install
 * **Curate (Segmentation)**
 
   ```ph
-  poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/vista3d.py
+  poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/nv_segment.py
   ```
 
 * **Reason (Chat)**
@@ -114,7 +114,7 @@ poetry install
 * **Generate (Synthetic Data)**
 
   ```sh
-  poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/maisi.py
+  poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/nv_generate.py
   ```
 
 ### 3. Connect Front-End to Back-End
