@@ -68,7 +68,7 @@ synthetic 3D CT scans based on your specifications.
 * **Output:** A new, realistic 3D volume is generated and loaded into VolView.
 
 ![A screenshot of a synthetically generated CT scan in
-VolView](docs/assets/generate_tab_example.jpeg)
+VolView](docs/assets/generate_tab_example_v2.jpeg)
 
 ## 🚀 Getting Started
 
