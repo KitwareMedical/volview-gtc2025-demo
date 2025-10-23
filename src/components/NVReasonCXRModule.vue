@@ -14,7 +14,7 @@ const TARGET_VIEW_ID = 'Axial';
 const SUGGESTED_PROMPTS = [
   'Find abnormalities and support devices',
   'Examine the chest X-ray',
-  'Provide differentials'
+  'Provide differentials',
 ] as const;
 
 // --- Store and Composables Setup ---
@@ -43,23 +43,24 @@ const newMessage = ref('');
 const isTyping = ref(false);
 const chatLogRef = ref<HTMLElement | null>(null);
 
+// --- Helper Functions ---
+const scrollToMax = () => {
+  if (chatLogRef.value) {
+    chatLogRef.value.scrollTop = chatLogRef.value.scrollHeight;
+  }
+};
+
+// --- Watchers ---
 // Watch chat history and scroll after DOM updates
 watch(
   chatHistory,
   () => {
-    if (chatLogRef.value) {
-      const scrollToMax = () => {
-        if (chatLogRef.value) {
-          chatLogRef.value.scrollTop = chatLogRef.value.scrollHeight;
-        }
-      };
-
-      // Scroll immediately and after delays to handle markdown rendering
-      scrollToMax();
-      setTimeout(scrollToMax, 50);
-      setTimeout(scrollToMax, 200);
-      setTimeout(scrollToMax, 500);
-    }
+    // Scroll immediately (after DOM update thanks to flush: 'post')
+    // and after delays to handle markdown rendering
+    scrollToMax();
+    setTimeout(scrollToMax, 50);
+    setTimeout(scrollToMax, 200);
+    setTimeout(scrollToMax, 500);
   },
   { deep: true, flush: 'post' }
 );
@@ -82,8 +83,9 @@ const inputPlaceholder = computed(() => {
 
 const currentSlice = computed(() => {
   if (!currentImageID.value) return null;
-  const config = viewSliceStore.getConfig(TARGET_VIEW_ID, currentImageID.value);
-  return config?.slice ?? null;
+  return (
+    viewSliceStore.getConfig(TARGET_VIEW_ID, currentImageID.value)?.slice ?? null
+  );
 });
 
 // --- Methods ---
@@ -102,34 +104,32 @@ const useSuggestedPrompt = (prompt: string) => {
 const sendMessage = async () => {
   if (isInputDisabled.value) return;
 
-  const text = newMessage.value.trim();
-  if (!text || !currentImageID.value) return;
+  const promptText = newMessage.value.trim();
+  const imageId = currentImageID.value;
+  if (!promptText || !imageId) return;
 
   // Convert chat history to the format expected by the backend
   // Map frontend sender ('user' | 'bot') to backend role ('user' | 'assistant')
   // IMPORTANT: Map history BEFORE appending the current message to avoid duplication
-  const history = chatHistory.value.map((msg) => ({
-    role: msg.sender === 'user' ? 'user' : 'assistant',
-    content: msg.text,
+  const history = chatHistory.value.map(({ sender, text }) => ({
+    role: sender === 'user' ? 'user' : 'assistant',
+    content: text,
   }));
 
-  appendMessage(text, 'user');
+  appendMessage(promptText, 'user');
   newMessage.value = '';
   isTyping.value = true;
 
   try {
     const payload = {
-      prompt: text,
+      prompt: promptText,
       history,
     };
-    backendModelStore.setAnalysisInput(currentImageID.value, payload);
+    backendModelStore.setAnalysisInput(imageId, payload);
 
-    await client.call('multimodalLlmAnalysis', [
-      currentImageID.value,
-      currentSlice.value,
-    ]);
+    await client.call('multimodalLlmAnalysis', [imageId, currentSlice.value]);
 
-    const botResponse = backendModelStore.analysisOutput[currentImageID.value];
+    const botResponse = backendModelStore.analysisOutput[imageId];
     if (typeof botResponse !== 'string') {
       throw new Error('Received an invalid response from the server.');
     }
@@ -145,37 +145,36 @@ const sendMessage = async () => {
 
 <template>
   <div class="fill-height d-flex flex-column">
-    <v-alert v-if="!isConnected" type="info" variant="tonal" class="ma-2 flex-shrink-0">
-      Not connected to the server.
-    </v-alert>
-
     <v-card class="ma-2 d-flex flex-column flex-grow-1 overflow-hidden">
       <div class="flex-shrink-0">
-        <!-- Header with Title and Chip -->
         <v-card-title class="d-flex align-center py-3">
           <v-icon class="mr-2">mdi-chat-question</v-icon>
           <span class="text-h6 flex-shrink-0">NV-Reason-CXR-3B</span>
-          <v-chip size="small" color="info" variant="outlined" class="ml-3 flex-shrink-0">
+          <v-chip
+            size="small"
+            color="info"
+            variant="outlined"
+            class="ml-3 flex-shrink-0"
+          >
             <v-icon start size="small">mdi-clipboard-text-search</v-icon>
             Chest X-Ray Analysis
           </v-chip>
           <v-spacer></v-spacer>
           <v-btn
-            icon="mdi-delete-sweep"
-            variant="text"
-            @click="resetAllChats"
-            size="small"
+          icon variant="text"
+          @click="resetAllChats"
+          size="small"
           >
-            <v-tooltip activator="parent" location="bottom">
+            <v-icon>mdi-delete-sweep</v-icon> <v-tooltip activator="parent" location="bottom">
               Clear Chat
             </v-tooltip>
           </v-btn>
         </v-card-title>
 
-        <!-- Model Description -->
         <v-card-text class="text-body-2 pt-0 pb-3">
-          A specialized vision-language model for medical reasoning and interpretation of chest X-ray images.
-          Combines visual understanding with medical reasoning to provide comprehensive analysis and detailed
+          A specialized vision-language model for medical reasoning and
+          interpretation of chest X-ray images. Combines visual understanding
+          with medical reasoning to provide comprehensive analysis and detailed
           explanations.
         </v-card-text>
 
@@ -212,7 +211,9 @@ const sendMessage = async () => {
         <v-divider />
 
         <v-card-text class="px-4 py-2">
-          <div class="text-caption text-medium-emphasis mb-1">Suggested prompts:</div>
+          <div class="text-caption text-medium-emphasis mb-1">
+            Suggested prompts:
+          </div>
           <div class="d-flex flex-wrap ga-1">
             <v-chip
               v-for="(prompt, index) in SUGGESTED_PROMPTS"
