@@ -134,4 +134,33 @@ Finally, connect the VolView front-end to your running model servers.
    ![A screenshot of the server configuration panel in
    VolView](docs/assets/volview-server-config-2.png)
 
+### (Optional) 4. Saving Configs for Remote Servers
+
+To save IP addresses for the three backend servers in the VolView Settings panel
+, you can pre-configure them in the `.env` file.
+
+1. Copy the env file local configuration file from the template:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+2. Edit the **.env.** file and update the following variables with the correct
+   remote IP addresses (and ports) of your running back-end servers:
+
+   ```bash
+   VITE_REMOTE_SERVER_1_URL=
+   VITE_REMOTE_SERVER_2_URL=
+   VITE_REMOTE_SERVER_3_URL=
+   ```
+
+   Example:
+
+   ```bash
+   VITE_REMOTE_SERVER_1_URL=http://localhost:4014
+   VITE_REMOTE_SERVER_2_URL=http://localhost:4015
+   VITE_REMOTE_SERVER_3_URL=http://10.50.56.30:9003
+
+---
+
 That's it! You are now ready to use the integrated NVIDIA models within VolView.
