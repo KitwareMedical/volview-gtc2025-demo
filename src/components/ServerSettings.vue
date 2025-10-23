@@ -11,6 +11,8 @@ const StatusToText: Record<ConnectionState, string> = {
   [ConnectionState.Pending]: 'Connecting...',
 };
 
+const serverLabels = ['Segment Server', 'Reason Server', 'Generate Server'];
+
 // Create a reactive configuration for each server store
 const servers = [useServerStore1, useServerStore2, useServerStore3].map((useStore) => {
   const store = useStore();
@@ -45,7 +47,7 @@ const servers = [useServerStore1, useServerStore2, useServerStore3].map((useStor
       :class="{ 'mt-6': index > 0 }"
     >
       <h3>
-        <span>Remote Server {{ index + 1 }}</span>
+        <span>{{ serverLabels[index] }} (Remote Server {{ index + 1 }})</span>
         <v-btn
           icon="mdi-help-circle"
           variant="flat"
