@@ -8,7 +8,7 @@
           app
           clipped
           touchless
-          width="450"
+          width="500"
           id="left-nav"
         >
           <module-panel @close="leftSideBar = false" />
