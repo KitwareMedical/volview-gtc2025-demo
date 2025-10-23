@@ -79,7 +79,6 @@ const doGenerateWithNVGenerateCT = async () => {
     </v-alert>
 
     <v-card class="mb-4">
-      <!-- Header with Title and Chip -->
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-creation</v-icon>
         <span class="text-h6">NV-Generate-CT</span>
@@ -94,7 +93,6 @@ const doGenerateWithNVGenerateCT = async () => {
           Generate high-quality synthetic 3D CT images. Configure output size and voxel spacing below.
         </div>
 
-        <!-- Output Size Selection -->
         <div class="text-subtitle-2 mb-2">Output Size</div>
         <v-row>
           <v-col cols="6">
@@ -119,7 +117,6 @@ const doGenerateWithNVGenerateCT = async () => {
           </v-col>
         </v-row>
 
-        <!-- Spacing Selection -->
         <div class="text-subtitle-2 mb-2 mt-2">Voxel Spacing (mm)</div>
         <v-row>
           <v-col cols="6">
@@ -161,7 +158,6 @@ const doGenerateWithNVGenerateCT = async () => {
       </v-card-text>
     </v-card>
 
-    <!-- Collapsible Model Information -->
     <v-expansion-panels v-model="modelInfoExpanded" variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title>
@@ -195,25 +191,29 @@ const doGenerateWithNVGenerateCT = async () => {
             <thead>
               <tr>
                 <th>Output Size</th>
-                <th>Recommended Spacing</th>
+                <th>Spacing</th>
+                <th>Approx. GPU Mem.</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>256 × 256 × 256</td>
                 <td>1.5 × 1.5 × 1.5 mm</td>
+                <td>15.4 GB</td>
               </tr>
               <tr>
                 <td>512 × 512 × 128</td>
                 <td>0.8 × 0.8 × 2.5 mm</td>
+                <td>15.7 GB</td>
               </tr>
               <tr>
                 <td>512 × 512 × 512</td>
                 <td>1.0 × 1.0 × 1.0 mm</td>
+                <td>22.8 GB</td>
               </tr>
             </tbody>
           </v-table>
-        </v-expansion-panel-text>
+          </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
