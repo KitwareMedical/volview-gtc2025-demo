@@ -29,28 +29,31 @@ volview = VolViewApi()
 process_pool = ProcessPoolExecutor(max_workers=2)
 
 
-def do_monai_inference(serialized_img: dict, label_prompt: List[int]) -> Dict:
+def _execute_vista3d_inference_in_process(
+    vtkjs_image_dict: dict, label_prompt: List[int]
+) -> Dict:
     """
-    Performs MONAI bundle inference and returns the result as a vtk.js dictionary.
+    Runs VISTA-3D bundle inference in a separate process.
 
     This function is designed to be called via ProcessPoolExecutor. It handles
     the entire pipeline:
-    1. Deserializes the input image.
-    2. Saves it to a temporary NRRD file.
+    1. Converts the vtk.js dictionary back into an ITK image.
+    2. Saves the ITK image to a temporary NRRD file.
     3. Downloads the MONAI bundle if not present.
-    4. Runs the MONAI bundle inference via a subprocess.
+    4. Runs the 'vista3d' bundle inference via a subprocess.
     5. Reads the resulting segmentation file from disk.
-    6. Converts the result to a vtk.js-compatible dictionary for transport.
+    6. Converts the resulting ITK image to a vtk.js-compatible dictionary.
 
     Args:
-        serialized_img: A vtkjs-serialized image dictionary.
-        label_prompt: List of class indices to segment. Empty list means segment all.
+        vtkjs_image_dict: A dict representing a vtk.js image. This plain
+            dictionary format is used for stable inter-process communication.
+        label_prompt: List of class indices to segment. Empty list segments all.
 
     Returns:
         A dictionary representing the vtk.js image data of the segmentation.
     """
     # 1. Convert incoming image data to an ITK image object
-    input_itk_image = convert_vtkjs_to_itk_image(serialized_img)
+    input_itk_image = convert_vtkjs_to_itk_image(vtkjs_image_dict)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # 2. Save the ITK image to a temporary file
@@ -62,13 +65,13 @@ def do_monai_inference(serialized_img: dict, label_prompt: List[int]) -> Dict:
         python_executable = sys.executable
 
         # 3. Download the MONAI Bundle if necessary
-        print("MONAI: Ensuring VISTA-3D bundle is downloaded...")
+        print("VISTA-3D: Ensuring bundle is downloaded...")
         download_command = [
             python_executable, "-m", "monai.bundle", "download",
             VISTA3D_BUNDLE_NAME, "--bundle_dir", VISTA3D_BUNDLE_DIR,
         ]
         subprocess.run(download_command, check=True, capture_output=True, text=True)
-        print("MONAI: Bundle is ready.")
+        print("VISTA-3D: Bundle is ready.")
 
         # 4. Execute inference
         bundle_root = os.path.join(VISTA3D_BUNDLE_DIR, VISTA3D_BUNDLE_NAME)
@@ -76,15 +79,15 @@ def do_monai_inference(serialized_img: dict, label_prompt: List[int]) -> Dict:
         if os.path.exists(eval_dir):
             shutil.rmtree(eval_dir)
 
-        print(f"MONAI: Running inference on {abs_image_path}...")
+        print(f"VISTA-3D: Running inference on {abs_image_path}...")
 
         # Build input_dict with optional label_prompt
         if label_prompt and len(label_prompt) > 0:
             input_dict = f"{{'image':'{abs_image_path}','label_prompt':{label_prompt}}}"
-            print(f"MONAI: Segmenting specific classes: {label_prompt}")
+            print(f"VISTA-3D: Segmenting specific classes: {label_prompt}")
         else:
             input_dict = f"{{'image':'{abs_image_path}'}}"
-            print("MONAI: Segmenting all available classes")
+            print("VISTA-3D: Segmenting all available classes")
 
         inference_command = [
             python_executable, "-m", "monai.bundle", "run",
@@ -95,9 +98,9 @@ def do_monai_inference(serialized_img: dict, label_prompt: List[int]) -> Dict:
             inference_command, cwd=bundle_root, check=True,
             capture_output=True, text=True
         )
-        print("MONAI STDOUT:", result.stdout)
+        print("VISTA-3D STDOUT:", result.stdout)
         if result.stderr:
-            print("MONAI STDERR:", result.stderr)
+            print("VISTA-3D STDERR:", result.stderr)
 
         # 5. Find and read the segmentation result
         input_name_no_ext = os.path.splitext(input_filename)[0]
@@ -107,36 +110,40 @@ def do_monai_inference(serialized_img: dict, label_prompt: List[int]) -> Dict:
         )
         if not os.path.exists(result_path):
             raise FileNotFoundError(
-                "MONAI inference finished but the expected output file "
+                "VISTA-3D inference finished but the expected output file "
                 f"was not found at {result_path}"
             )
         itk_image_result = itk.imread(result_path)
 
         # 6. Convert the ITK result to a vtk.js dictionary and return it
-        print("MONAI: Converting ITK image to VTK.js format...")
-        vtkjs_data = convert_itk_to_vtkjs_image(itk_image_result)
+        print("VISTA-3D: Converting result to VTK.js format...")
+        segmentation_vtkjs_dict = convert_itk_to_vtkjs_image(itk_image_result)
 
-        print("MONAI: Inference complete. Returning segmentation object.")
-        return vtkjs_data
+        print("VISTA-3D: Inference complete. Returning segmentation.")
+        return segmentation_vtkjs_dict
 
 
-async def run_monai_inference_process(img, label_prompt: List[int]) -> Dict:
+async def run_vista3d_inference_async(
+    itk_image: itk.Image, label_prompt: List[int]
+) -> Dict:
     """
-    Asynchronously runs the MONAI inference function in the process pool.
+    Asynchronously runs the VISTA-3D inference in the process pool.
 
     Args:
-        img: The input image.
+        itk_image: The ITK image object to segment.
         label_prompt: List of class indices to segment.
 
     Returns:
         The segmentation result as a vtk.js dictionary.
     """
-    serialized_img = convert_itk_to_vtkjs_image(img)
+    # Convert to vtk.js dict for stable serialization to the process pool
+    vtkjs_image_dict = convert_itk_to_vtkjs_image(itk_image)
+
     loop = asyncio.get_event_loop()
-    segmentation_object = await loop.run_in_executor(
-        process_pool, do_monai_inference, serialized_img, label_prompt
+    segmentation_vtkjs_dict = await loop.run_in_executor(
+        process_pool, _execute_vista3d_inference_in_process, vtkjs_image_dict, label_prompt
     )
-    return segmentation_object
+    return segmentation_vtkjs_dict
 
 
 @volview.expose("segmentWithNVSegmentCT")
@@ -144,8 +151,8 @@ async def run_nv_segment_ct_segmentation(img_id: str, label_prompt: List[int] = 
     """
     Exposes MONAI VISTA-3D (NV-Segment-CT) segmentation to the VolView client.
 
-    Takes an image ID from the client, runs inference with optional class selection,
-    and sends the resulting vtk.js object back to the client.
+    Takes an image ID from the client, runs inference, and sends the
+    resulting segmentation (as a vtk.js object) back to the client.
 
     Args:
         img_id: The ID of the image to segment.
@@ -160,14 +167,14 @@ async def run_nv_segment_ct_segmentation(img_id: str, label_prompt: List[int] = 
 
     image_cache_store = get_current_client_store("image-cache")
 
-    img = await image_cache_store.getVtkImageData(img_id)
-    if img is None:
+    itk_image = await image_cache_store.getVtkImageData(img_id)
+    if itk_image is None:
         raise ValueError(f"No image found for ID: {img_id}")
 
-    segmentation_result_obj = await run_monai_inference_process(img, label_prompt)
+    segmentation_vtkjs_dict = await run_vista3d_inference_async(itk_image, label_prompt)
 
     nv_segment_store = get_current_client_store("nv-segment")
-    await nv_segment_store.setNVSegmentResult(img_id, segmentation_result_obj)
+    await nv_segment_store.setNVSegmentResult(img_id, segmentation_vtkjs_dict)
 
     print("Successfully created segmentation. Sending object back to client.")
     return 0
