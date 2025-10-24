@@ -5,8 +5,17 @@ import { useServerStore, ConnectionState } from '@/src/store/server-1';
 import { useNVSegmentStore } from '@/src/store/nv-segment';
 import { useImageStore } from '@/src/store/datasets-images';
 import { useSegmentGroupStore } from '@/src/store/segmentGroups';
+import { useImageCacheStore } from '@/src/store/image-cache';
+import { ensureSameSpace } from '@/src/io/resample/resample';
+import vtkLabelMap from '@/src/vtk/LabelMap';
+import {
+  CATEGORICAL_COLORS,
+} from '@/src/config';
+import { normalizeForStore } from '@/src/utils';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtk from '@kitware/vtk.js/vtk';
+import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
+import type { TypedArray } from '@kitware/vtk.js/types';
 
 // --- Segmentation Class Mapping ---
 // Maps class index to class name for VISTA-3D
@@ -162,6 +171,7 @@ const serverStore = useServerStore();
 const nvSegmentStore = useNVSegmentStore();
 const imageStore = useImageStore();
 const segmentGroupStore = useSegmentGroupStore();
+const imageCacheStore = useImageCacheStore();
 
 const { client } = serverStore;
 const ready = computed(
@@ -176,6 +186,60 @@ const selectedClasses = ref<number[]>([]);
 
 // Model info expansion state
 const modelInfoExpanded = ref<number[]>([]);
+
+// --- Helpers copied from segmentGroupStore ---
+
+const LabelmapArrayType = Uint8Array;
+
+function convertToUint8(array: number[] | TypedArray): Uint8Array {
+  const uint8Array = new Uint8Array(array.length);
+  for (let i = 0; i < array.length; i++) {
+    const value = array[i];
+    uint8Array[i] = value < 0 || value > 255 ? 0 : value;
+  }
+  return uint8Array;
+}
+
+function getLabelMapScalars(imageData: vtkImageData) {
+  const scalars = imageData.getPointData().getScalars();
+  let values = scalars.getData();
+
+  if (!(values instanceof LabelmapArrayType)) {
+    values = convertToUint8(values);
+  }
+
+  return vtkDataArray.newInstance({
+    numberOfComponents: scalars.getNumberOfComponents(),
+    values,
+  });
+}
+
+function toLabelMap(imageData: vtkImageData) {
+  const labelmap = vtkLabelMap.newInstance(
+    imageData.get('spacing', 'origin', 'direction', 'extent', 'dataDescription')
+  );
+
+  labelmap.setDimensions(imageData.getDimensions());
+  labelmap.computeTransforms();
+
+  // outline rendering only supports UInt8Array image types
+  const scalars = getLabelMapScalars(imageData);
+  labelmap.getPointData().setScalars(scalars);
+
+  return labelmap;
+}
+
+// Helper function to get a color (copied from segmentGroupStore)
+let nextColorIndex = 0;
+const getNextColor = () => {
+  const color = CATEGORICAL_COLORS[nextColorIndex];
+  nextColorIndex = (nextColorIndex + 1) % CATEGORICAL_COLORS.length;
+  return [...color, 255] as const;
+};
+// Helper for default names
+const makeDefaultSegmentName = (value: number) => `Segment ${value}`;
+
+// --- Component Logic ---
 
 const doSegmentWithNVSegmentCT = async () => {
   const baseImageId = currentImageID.value;
@@ -197,17 +261,45 @@ const doSegmentWithNVSegmentCT = async () => {
       return;
     }
 
-    // Convert the plain JS object and assert its type to vtkImageData
     const labelmapImageData = vtk(labelmapObject) as vtkImageData;
 
-    // Add the data as a new image layer
-    const newImageId = imageStore.addVTKImageData(
-      'NV-Segment-CT Segmentation Result',
-      labelmapImageData
+    // 1. Get the parent image
+    const parentImage = imageCacheStore.getVtkImageData(baseImageId);
+    if (!parentImage) {
+      throw new Error(`Could not find parent image data for ${baseImageId}`);
+    }
+    const parentName = imageStore.metadata[baseImageId]?.name ?? 'Image';
+
+    // 2. Ensure segmentation is in the same space as the parent
+    const matchingParentSpace = await ensureSameSpace(
+      parentImage,
+      labelmapImageData,
+      true // true for labelmap interpolation (nearest neighbor)
     );
 
-    // Convert the new image layer to a labelmap
-    segmentGroupStore.convertImageToLabelmap(newImageId, baseImageId);
+    // 3. Convert the vtkImageData to a vtkLabelMap
+    const labelmapImage = toLabelMap(matchingParentSpace);
+
+    // 4. Find unique values and map them to the correct segment names
+    const scalarData = labelmapImage.getPointData().getScalars().getData();
+    const uniqueValues = new Set<number>(scalarData);
+    uniqueValues.delete(0); // 0 is always background
+
+    const segments = Array.from(uniqueValues).map((value) => ({
+      value,
+      name: SEGMENT_CLASSES[value] || makeDefaultSegmentName(value),
+      color: [...getNextColor()],
+      visible: true,
+    }));
+
+    const { order, byKey } = normalizeForStore(segments, 'value');
+
+    // 5. Add the correctly-built label map to the store
+    segmentGroupStore.addLabelmap(labelmapImage, {
+      name: `NV-Segment Result for ${parentName}`,
+      parentImage: baseImageId,
+      segments: { order, byValue: byKey },
+    });
 
     console.log('Segmentation successfully loaded and converted to labelmap!');
   } catch (error) {
