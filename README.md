@@ -164,3 +164,19 @@ To save IP addresses for the three backend servers in the VolView Settings panel
 ---
 
 That's it! You are now ready to use the integrated NVIDIA models within VolView.
+
+## Disclaimer
+
+This software is provided **solely for research and educational purposes**.  It
+is a research platform and **is not intended for clinical
+use**.  
+
+- This software has **not been reviewed or approved by the U.S. Food and Drug
+  Administration (FDA)** or any other regulatory authority.  
+- It must **not be used for diagnosis, treatment, or any clinical
+  decision-making**.  
+- No warranties or guarantees of performance, safety, or fitness for medical
+  purposes are provided.  
+
+By using this software, you acknowledge that it is for **non-clinical,
+investigational research only**.
