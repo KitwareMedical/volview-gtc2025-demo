@@ -14,16 +14,16 @@ repository](https://github.com/Kitware/VolView).
 This version of VolView adds three new tabs: **Curate**, **Reason**, and
 **Generate**.
 
-### 🧠 Curate (Segmentation)
+### 🧠 Segment (Curation)
 
-The Curate tab uses the **NVIDIA Clara NV-Curate-CTMR-v2** model to perform
+The Segment tab uses the **NVIDIA Clara NV-Curate-CTMR-v2** model to perform
 automatic 3D segmentation of anatomical structures.
 
 * **How to Use:**
 
   1. Load a compatible 3D CT or MR dataset.
 
-  2. Navigate to the **Curate** tab.
+  2. Navigate to the **Segment** tab.
 
   3. Click **Run Segmentation**.
 
