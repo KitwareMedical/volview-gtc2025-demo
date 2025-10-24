@@ -70,6 +70,66 @@ synthetic 3D CT scans based on your specifications.
 ![A screenshot of a synthetically generated CT scan in
 VolView](docs/assets/generate_tab_example_v2.jpeg)
 
+
+## Software Requirements
+
+Before getting started, ensure your system meets the following requirements:
+
+### System Requirements
+
+- **Operating System**: Linux (Ubuntu 18.04+ recommended), macOS, or Windows with WSL2
+- **GPU**: NVIDIA GPU with at least 24GB VRAM (RTX 3090, RTX 4090, or equivalent)
+- **CUDA**: CUDA 11.8+ or CUDA 12.x
+- **System RAM**: At least 32GB recommended
+- **Storage**: At least 50GB free space for models and data
+
+### Software Dependencies
+
+#### Frontend Requirements
+- **Node.js**: Version 18.0+ 
+- **npm**: Version 8.0+ (comes with Node.js)
+
+#### Backend Requirements  
+- **Python**: Version 3.11-3.13
+- **Poetry**: Latest version for Python dependency management
+- **PyTorch**: 2.0+ with CUDA support
+- **MONAI**: For medical AI model execution
+
+### Installation Prerequisites
+
+1. **Install Node.js and npm**:
+   ```bash
+   # Ubuntu/Debian
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   
+   # macOS with Homebrew
+   brew install node
+   
+   # Windows: Download from https://nodejs.org
+   ```
+
+2. **Install Python 3.11+**:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install python3.11 python3.11-pip python3.11-venv
+   
+   # macOS with Homebrew  
+   brew install python@3.11
+   ```
+
+3. **Install Poetry**:
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+
+4. **Verify CUDA Installation**:
+   ```bash
+   nvidia-smi
+   nvcc --version
+   ```
+
 ## 🚀 Getting Started
 
 Follow these steps to set up the front-end and back-end services.
