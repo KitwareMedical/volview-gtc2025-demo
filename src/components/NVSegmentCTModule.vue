@@ -269,6 +269,7 @@ const doSegmentWithNVSegmentCT = async () => {
       throw new Error(`Could not find parent image data for ${baseImageId}`);
     }
     const parentName = imageStore.metadata[baseImageId]?.name ?? 'Image';
+    const newGroupName = `NV-Segment Result for ${parentName}`;
 
     // 2. Ensure segmentation is in the same space as the parent
     const matchingParentSpace = await ensureSameSpace(
@@ -294,14 +295,34 @@ const doSegmentWithNVSegmentCT = async () => {
 
     const { order, byKey } = normalizeForStore(segments, 'value');
 
-    // 5. Add the correctly-built label map to the store
+    // 5. Find and remove existing group, then add the new one
+
+    // Check if a group with the same name and parent already exists
+    const existingGroupID = Object.keys(segmentGroupStore.metadataByID).find(
+      (id) => {
+        const meta = segmentGroupStore.metadataByID[id];
+        return meta.parentImage === baseImageId && meta.name === newGroupName;
+      }
+    );
+
+    if (existingGroupID) {
+      // Overwrite: Remove the old group first
+      segmentGroupStore.removeGroup(existingGroupID);
+      console.log(`Overwriting existing segmentation group: ${existingGroupID}`);
+    }
+
+    // Add the new (or replacement) label map to the store
     segmentGroupStore.addLabelmap(labelmapImage, {
-      name: `NV-Segment Result for ${parentName}`,
+      name: newGroupName,
       parentImage: baseImageId,
       segments: { order, byValue: byKey },
     });
 
-    console.log('Segmentation successfully loaded and converted to labelmap!');
+    console.log(
+      existingGroupID
+        ? 'Segmentation successfully overwritten!'
+        : 'Segmentation successfully loaded and converted to labelmap!'
+    );
   } catch (error) {
     console.error('An error occurred during segmentation:', error);
   } finally {
