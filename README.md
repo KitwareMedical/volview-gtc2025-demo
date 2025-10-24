@@ -240,3 +240,28 @@ use**.
 
 By using this software, you acknowledge that it is for **non-clinical,
 investigational research only**.
+
+## Licenses & Attribution
+
+This repository (`volview-gtc2025-demo`) is released under the **Apache License 2.0**.  
+You are free to use, modify, and distribute this code, provided you comply with the terms of the license.  
+
+### External Models
+
+This demo integrates external AI models that are **not part of this repository**.  
+Each model has its own license and usage terms. You are responsible for reviewing and complying with these terms when downloading or using the models.
+
+### Important Notes
+
+- **This repository does not redistribute model weights.**  
+  Instead, it provides integration points to download and use them directly from their official sources.
+
+- **Model license terms vary.**  
+  Some models are Apache 2.0, while others (e.g., NVIDIA-hosted) may have research-only or commercial-use restrictions.  
+  Always check the model card or repository for the current license.
+
+- **Attribution.**  
+  If you use this demo in your work, please attribute the external models according to their license terms (e.g., Apache NOTICE requirements, CC-BY citation, NVIDIA terms of use).
+
+---
+
