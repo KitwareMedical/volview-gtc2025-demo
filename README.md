@@ -113,7 +113,7 @@ Before getting started, ensure your system meets the following requirements:
    ```bash
    # Ubuntu/Debian
    sudo apt update
-   sudo apt install python3.11 python3.11-pip python3.11-venv
+   sudo apt install python3.11 python3.11-venv
    
    # macOS with Homebrew  
    brew install python@3.11
