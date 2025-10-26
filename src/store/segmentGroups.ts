@@ -211,6 +211,37 @@ export const useSegmentGroupStore = defineStore('segmentGroup', () => {
   }
 
   /**
+   * Picks a unique name for a segment group with a given prefix.
+   * This is useful for tools that create segment groups programmatically.
+   * @param baseName - The base name (usually the parent image name)
+   * @param parentID - The parent image ID
+   * @param prefix - The prefix to use for the segment group name (e.g., 'NV-Segment-CT')
+   * @returns A unique name for the segment group
+   */
+  function pickUniqueSegmentGroupName(
+    baseName: string,
+    parentID: string,
+    prefix: string = 'Segment Group'
+  ) {
+    const existingNames = new Set(
+      Object.values(metadataByID)
+        .filter((meta) => meta.parentImage === parentID)
+        .map((meta) => meta.name)
+    );
+
+    let index = 1;
+    let name = '';
+    do {
+      name = index === 1 
+        ? `${prefix} for ${baseName}` 
+        : `${prefix} for ${baseName} (${index})`;
+      index++;
+    } while (existingNames.has(name));
+
+    return name;
+  }
+
+  /**
    * Creates a new labelmap entry from a parent/source image.
    */
   function newLabelmapFromImage(this: _This, parentID: string) {
@@ -588,6 +619,7 @@ export const useSegmentGroupStore = defineStore('segmentGroup', () => {
     getSegment,
     updateSegment,
     deleteSegment,
+    pickUniqueSegmentGroupName,
     serialize,
     deserialize,
   };
