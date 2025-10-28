@@ -5,6 +5,10 @@ interface ImportMetaEnv {
   readonly VITE_DICOM_WEB_NAME: string;
   readonly VITE_ENABLE_REMOTE_SAVE: boolean;
   readonly VITE_REMOTE_SERVER_URL: string;
+  readonly VITE_REMOTE_SERVER_1_URL: string;
+  readonly VITE_REMOTE_SERVER_2_URL: string;
+  readonly VITE_REMOTE_SERVER_3_URL: string;
+  readonly VITE_REMOTE_SERVER_4_URL: string;
 }
 
 interface ImportMeta {

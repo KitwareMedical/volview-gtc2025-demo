@@ -75,6 +75,7 @@ import { useImageStore } from '@/src/store/datasets-images';
 import { useServerStore as useServerStore1 } from '@/src/store/server-1';
 import { useServerStore as useServerStore2 } from '@/src/store/server-2';
 import { useServerStore as useServerStore3 } from '@/src/store/server-3';
+import { useServerStore as useServerStore4 } from '@/src/store/server-4';
 import { useGlobalErrorHook } from '@/src/composables/useGlobalErrorHook';
 import { useKeyboardShortcuts } from '@/src/composables/useKeyboardShortcuts';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
@@ -151,7 +152,7 @@ export default defineComponent({
 
     // --- remote server --- //
 
-    const serverStores = [useServerStore1(), useServerStore2(), useServerStore3()];
+    const serverStores = [useServerStore1(), useServerStore2(), useServerStore3(), useServerStore4()];
 
     onMounted(() => {
       serverStores.forEach((store) => store.connect());

@@ -47,7 +47,7 @@ import DataBrowser from './DataBrowser.vue';
 import RenderingModule from './RenderingModule.vue';
 import AnnotationsModule from './AnnotationsModule.vue';
 // import ServerModule from './ServerModule.vue';
-import NVSegmentCTModule from './NVSegmentCTModule.vue';
+import NVSegmentModule from './NVSegmentModule.vue';
 import NVReasonCXRModule from './NVReasonCXRModule.vue';
 import NVGenerateCTModule from './NVGenerateCTModule.vue';
 import ProbeView from './ProbeView.vue';
@@ -70,7 +70,7 @@ const Modules: Module[] = [
   {
     name: 'Segment',
     icon: 'brain',
-    component: NVSegmentCTModule,
+    component: NVSegmentModule,
   },
   {
     name: 'Reason',
