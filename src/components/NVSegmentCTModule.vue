@@ -239,6 +239,38 @@ const getNextColor = () => {
 // Helper for default names
 const makeDefaultSegmentName = (value: number) => `Segment ${value}`;
 
+/**
+ * Picks a unique name for a segment group with a given prefix.
+ * This is localized to this module to avoid changing the upstream store.
+ * @param baseName - The base name (usually the parent image name)
+ * @param parentID - The parent image ID
+ * @param prefix - The prefix to use for the segment group name
+ * @returns A unique name for the segment group
+ */
+function pickUniqueSegmentGroupName(
+  baseName: string,
+  parentID: string,
+  prefix: string = 'Segment Group'
+) {
+  // Get all existing names for this parent image
+  const existingNames = new Set(
+    Object.values(segmentGroupStore.metadataByID)
+      .filter((meta) => meta.parentImage === parentID)
+      .map((meta) => meta.name)
+  );
+
+  let index = 1;
+  let name = `${prefix} for ${baseName}`; // Initial name suggestion
+
+  // Keep checking for a unique name, appending (index) if needed
+  while (existingNames.has(name)) {
+    index++;
+    name = `${prefix} for ${baseName} (${index})`;
+  }
+
+  return name;
+}
+
 // --- Component Logic ---
 
 const doSegmentWithNVSegmentCT = async () => {
@@ -269,9 +301,9 @@ const doSegmentWithNVSegmentCT = async () => {
       throw new Error(`Could not find parent image data for ${baseImageId}`);
     }
     const parentName = imageStore.metadata[baseImageId]?.name ?? 'Image';
-    
-    // Generate a unique name for this segment group
-    const newGroupName = segmentGroupStore.pickUniqueSegmentGroupName(
+
+    // Generate a unique name for this segment group using the local function
+    const newGroupName = pickUniqueSegmentGroupName(
       parentName,
       baseImageId,
       'NV-Segment-CT'
@@ -337,7 +369,6 @@ const selectionHintText = computed(() => {
     </v-alert>
 
     <v-card class="mb-4">
-      <!-- Merged Header with Title and Chips -->
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-auto-fix</v-icon>
         <span class="text-h6">NV-Segment-CT</span>
@@ -352,7 +383,6 @@ const selectionHintText = computed(() => {
           Foundation model for 3D CT segmentation. Automatically segment anatomical structures in the loaded CT image.
         </div>
 
-        <!-- Class Selector -->
         <div class="mb-4">
           <v-select
             v-model="selectedClasses"
@@ -403,7 +433,6 @@ const selectionHintText = computed(() => {
       </v-card-text>
     </v-card>
 
-    <!-- Collapsible Model Information -->
     <v-expansion-panels v-model="modelInfoExpanded" variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title>
