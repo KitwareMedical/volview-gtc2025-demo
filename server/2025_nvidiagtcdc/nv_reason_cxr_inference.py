@@ -19,9 +19,9 @@ def get_model_and_processor() -> Tuple[AutoModelForImageTextToText, AutoProcesso
             _model_path,
             torch_dtype=torch.bfloat16,
             device_map="auto",
-            local_files_only=True,
+            local_files_only=False,
         ).eval()
-        processor = AutoProcessor.from_pretrained(_model_path, use_fast=True, local_files_only=True)
+        processor = AutoProcessor.from_pretrained(_model_path, use_fast=True, local_files_only=False)
         _model_cache = (model, processor)
         print("Clara model loaded and cached successfully.")
 
