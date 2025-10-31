@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia';
 import { ConnectionState, useServerStore as useServerStore1 } from '@/src/store/server-1';
 import { useServerStore as useServerStore2 } from '@/src/store/server-2';
 import { useServerStore as useServerStore3 } from '@/src/store/server-3';
+import { useServerStore as useServerStore4 } from '@/src/store/server-4';
 
 const StatusToText: Record<ConnectionState, string> = {
   [ConnectionState.Connected]: 'Connected',
@@ -11,10 +12,10 @@ const StatusToText: Record<ConnectionState, string> = {
   [ConnectionState.Pending]: 'Connecting...',
 };
 
-const serverLabels = ['Segment Server', 'Reason Server', 'Generate Server'];
+const serverLabels = ['Segment Server (CT)', 'Reason Server', 'Generate Server', 'Segment Server (MRI)'];
 
 // Create a reactive configuration for each server store
-const servers = [useServerStore1, useServerStore2, useServerStore3].map((useStore) => {
+const servers = [useServerStore1, useServerStore2, useServerStore3, useServerStore4].map((useStore) => {
   const store = useStore();
   const { connState } = storeToRefs(store);
 

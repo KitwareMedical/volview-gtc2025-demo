@@ -159,9 +159,9 @@ cd server
 poetry install
 ```
 
-* **Curate (Segmentation)**
+* **Curate (CT Segmentation)**
 
-  ```ph
+  ```sh
   poetry run python -m volview_server -P 4014 -H 0.0.0.0 2025_nvidiagtcdc/nv_segment.py
   ```
 
@@ -176,6 +176,14 @@ poetry install
   ```sh
   poetry run python -m volview_server -P 4016 -H 0.0.0.0 2025_nvidiagtcdc/nv_generate.py
   ```
+
+* **MRI Segmentation (Optional)**
+
+  ```sh
+  poetry run python -m volview_server -P 4017 -H 0.0.0.0 2025_nvidiagtcdc/nv_segment_mri.py
+  ```
+
+> **Note:** Model files are automatically downloaded from HuggingFace on first use and cached locally. The NV-Segment-CTMR model is approximately 800MB and will be downloaded to `~/.cache/huggingface/hub/` on first startup.
 
 ### 3. Connect Front-End to Back-End
 

@@ -39,3 +39,14 @@ bundles/
 pyrightconfig.json
 tmp/
 .env
+
+# Model files and cache directories
+server/models/
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+*.pkl
+*.h5
+*.hdf5
