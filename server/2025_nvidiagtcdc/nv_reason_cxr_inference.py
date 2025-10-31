@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Tuple
 
 # Global model cache to avoid reloading on every inference
 _model_cache: Optional[Tuple[AutoModelForImageTextToText, AutoProcessor]] = None
-_model_path = "<Replace this path with /path/to/nvidia-reason-cxr-3b/model/weights/directory>"
+_model_path = "nvidia/NV-Reason-CXR-3B"
 
 def get_model_and_processor() -> Tuple[AutoModelForImageTextToText, AutoProcessor]:
     """Load and cache the model and processor. Reuses cached instances if available."""
@@ -19,9 +19,9 @@ def get_model_and_processor() -> Tuple[AutoModelForImageTextToText, AutoProcesso
             _model_path,
             torch_dtype=torch.bfloat16,
             device_map="auto",
-            local_files_only=True,
+            local_files_only=False,
         ).eval()
-        processor = AutoProcessor.from_pretrained(_model_path, use_fast=True, local_files_only=True)
+        processor = AutoProcessor.from_pretrained(_model_path, use_fast=True, local_files_only=False)
         _model_cache = (model, processor)
         print("Clara model loaded and cached successfully.")
 
