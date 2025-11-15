@@ -1,10 +1,11 @@
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 
 import itk
+import numpy as np
 
-from nv_reason_cxr_inference import run_nv_reason_cxr_inference
+from nv_reason_cxr_inference import run_nv_reason_cxr_inference_streaming, get_model_and_processor
 from volview_server import VolViewApi, get_current_client_store
 from volview_server.transformers import (
     convert_itk_to_vtkjs_image,
@@ -13,7 +14,105 @@ from volview_server.transformers import (
 
 volview = VolViewApi()
 
-process_pool = ProcessPoolExecutor(4)
+# Thread pool for LLM inference (1 worker to avoid multiple model instances)
+# PyTorch releases the GIL during inference, so threads work well here
+llm_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+
+# --- Server Startup: Preload Model ---
+def preload_models():
+    """
+    Preload the NV-Reason model during server startup.
+    This prevents the first client request from timing out during model loading.
+    """
+    print("\n" + "="*70)
+    print("PRELOADING MODELS ON SERVER STARTUP")
+    print("="*70)
+    print("This may take ~1 minute on first run...")
+
+    import time
+    start_time = time.time()
+
+    try:
+        # Load the model - this will cache it for all future requests
+        get_model_and_processor()
+        elapsed = time.time() - start_time
+        print(f"\n✅ Model preloaded successfully in {elapsed:.1f}s")
+        print(f"Server is ready to accept requests!")
+        print("="*70 + "\n")
+    except Exception as e:
+        print(f"\n❌ Failed to preload model: {e}")
+        print("Server will attempt to load on first request instead.")
+        print("="*70 + "\n")
+
+
+# Preload models when this module is imported (server startup)
+preload_models()
+
+
+def convert_vtkjs_rgb_to_grayscale(vtkjs_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert a multi-component vtkjs image to grayscale by extracting the first component.
+
+    This is needed for NV-Reason-CXR which expects grayscale input. The generic ITK
+    transformer doesn't handle multi-component images, so we preprocess here.
+
+    Args:
+        vtkjs_dict: A vtkjs image dictionary
+
+    Returns:
+        A modified vtkjs dictionary with single-component grayscale data
+    """
+    pixel_data_array = vtkjs_dict["pointData"]["arrays"][0]["data"]
+    num_components = pixel_data_array.get("numberOfComponents", 1)
+
+    # If already grayscale, return as-is
+    if num_components == 1:
+        return vtkjs_dict
+
+    # Extract first component for multi-component images (RGB → grayscale)
+    pixel_values = pixel_data_array["values"]
+
+    # Convert to numpy array, extract first component, convert back
+    if isinstance(pixel_values, bytes):
+        # Determine dtype from dataType field
+        dtype_map = {
+            "Uint8Array": np.uint8,
+            "Int8Array": np.int8,
+            "Uint16Array": np.uint16,
+            "Int16Array": np.int16,
+            "Uint32Array": np.uint32,
+            "Int32Array": np.int32,
+            "Float32Array": np.float32,
+            "Float64Array": np.float64,
+        }
+        dtype = dtype_map.get(pixel_data_array["dataType"], np.uint8)
+        pixel_array = np.frombuffer(pixel_values, dtype=dtype)
+    else:
+        pixel_array = np.array(pixel_values)
+
+    # Extract every nth value (first component only)
+    # e.g., for RGB: [R0,G0,B0,R1,G1,B1,...] -> [R0,R1,...]
+    grayscale_array = pixel_array[::num_components]
+
+    # Create a new vtkjs dict with single-component data
+    result = vtkjs_dict.copy()
+    result["pointData"] = {
+        **vtkjs_dict["pointData"],
+        "arrays": [
+            {
+                **vtkjs_dict["pointData"]["arrays"][0],
+                "data": {
+                    **pixel_data_array,
+                    "numberOfComponents": 1,
+                    "size": len(grayscale_array),
+                    "values": grayscale_array.tobytes(),
+                }
+            }
+        ]
+    }
+
+    return result
 
 def get_image_slice(img: itk.Image, active_layer: int | None = None) -> itk.Image:
     """If the image is 3D, extracts and returns the 2D slice  specified by active_layer.
@@ -54,61 +153,108 @@ def get_image_slice(img: itk.Image, active_layer: int | None = None) -> itk.Imag
     
     return slice_2d
 
-def do_clara_nv_reason_cxr_3b_inference(serialized_img: Dict[str, Any], analysis_input: Dict) -> str:
-    """Runs Clara NV-Reason-CXR-3B inference."""
+def do_clara_nv_reason_cxr_3b_inference_streaming(serialized_img: Dict[str, Any], analysis_input: Dict):
+    """Runs Clara NV-Reason-CXR-3B inference with streaming.
+
+    Note: Model warmup happens in the parent endpoint before this is called
+    to avoid stream timeouts during first load.
+    """
     itk_img = convert_vtkjs_to_itk_image(serialized_img)
-    response = run_nv_reason_cxr_inference(
+    return run_nv_reason_cxr_inference_streaming(
         input_data=analysis_input, itk_img=itk_img
     )
-    return response
 
-INFERENCE_DISPATCH = {
-    "Clara NV-Reason-CXR-3B": do_clara_nv_reason_cxr_3b_inference,
+
+STREAMING_INFERENCE_DISPATCH = {
+    "Clara NV-Reason-CXR-3B": do_clara_nv_reason_cxr_3b_inference_streaming,
 }
 
 
-@volview.expose("multimodalLlmAnalysis")
-async def multimodal_llm_analysis(img_id: str | None = None, active_layer: int | None = None) -> None:
-    """Runs multimodal LLM inference based on the selected model.
+@volview.expose("multimodalLlmAnalysisStream")
+async def multimodal_llm_analysis_stream(img_id: str | None = None, active_layer: int | None = None):
+    """Runs multimodal LLM inference with streaming support.
 
     Args:
         img_id: The ID of the image.
         active_layer: The index of the 2D slice to process. If None, assumes 2D image.
+
+    Yields:
+        dict: Streaming token data in the format {"token": str}
     """
+    import time
+    start_time = time.time()
+
     backend_store = get_current_client_store("backend-model-store")
     selected_model = await backend_store.selectedModel
-    print(f"Starting multimodal LLM analysis with model: {selected_model}...")
+    print(f"Starting streaming analysis with {selected_model} (image: {img_id}, layer: {active_layer})")
 
-    # --- 1. Get user prompt and vital signs data ---
-    print("Got the backend model store. Fetching the analysis input dictionary...")
+    # --- 1. Get user prompt ---
     analysis_input_dict = await backend_store.analysisInput[img_id]
-    print(f"Got analysis input: {analysis_input_dict}")
 
     # --- 2. Get the appropriate inference function from the dispatch table ---
-    inference_function = INFERENCE_DISPATCH.get(selected_model)
+    inference_function = STREAMING_INFERENCE_DISPATCH.get(selected_model)
     if not inference_function:
-        raise ValueError(f"Unknown model specified: '{selected_model}'. Available models: {list(INFERENCE_DISPATCH.keys())}")
+        raise ValueError(f"Unknown model specified: '{selected_model}'. Available models: {list(STREAMING_INFERENCE_DISPATCH.keys())}")
 
-    # --- 3. Get and process the image, if provided ---
+    # --- 3. Get and process the image ---
     image_cache_store = get_current_client_store("image-cache")
-    print("Got the images store. Fetching the image from the client...")
     img = await image_cache_store.getVtkImageData(img_id)
-    print("Got the image data from the client. Starting image processing.")
-    img_slice = get_image_slice(img, active_layer)
+
+    # Convert RGB to grayscale if needed (NV-Reason expects grayscale)
+    img_grayscale = convert_vtkjs_rgb_to_grayscale(img)
+
+    # Convert from vtkjs dict to ITK image
+    itk_img = convert_vtkjs_to_itk_image(img_grayscale)
+    img_slice = get_image_slice(itk_img, active_layer)
     serialized_img_vtkjs = convert_itk_to_vtkjs_image(img_slice)
 
-    # --- 4. Execute the selected model's inference logic ---
-    loop = asyncio.get_event_loop()
+    # --- 4. Execute streaming inference ---
+    # Note: Model is preloaded during server startup, so this should be fast
+    full_response = ""
+    token_count = 0
+    streaming_start = time.time()
+
     try:
-        model_response = await loop.run_in_executor(
-            process_pool, inference_function, serialized_img_vtkjs, analysis_input_dict
-        )
-        await backend_store.setAnalysisResult(img_id, model_response)
-        
-        # Restore the final, detailed response log
-        print(f"Analysis with {selected_model} finished. Response:\n{model_response}")
+        # Get the async generator from the inference function
+        token_generator = inference_function(serialized_img_vtkjs, analysis_input_dict)
+
+        # Yield tokens as they arrive
+        async for token in token_generator:
+            full_response += token
+            token_count += 1
+
+            # Log first token
+            if token_count == 1:
+                first_token_time = time.time() - streaming_start
+                print(f"First token after {first_token_time:.1f}s, streaming started...")
+
+            yield {"token": token}
+
+        streaming_time = time.time() - streaming_start
+        total_time = time.time() - start_time
+
+        # Store the complete response in the backend store
+        await backend_store.setAnalysisResult(img_id, full_response)
+
+        # Verify XML structure
+        has_think = '<think>' in full_response
+        has_answer = '<answer>' in full_response
+
+        print(f"✅ Stream complete: {token_count} tokens in {streaming_time:.1f}s "
+              f"({token_count / streaming_time:.1f} tok/s) | "
+              f"<think>: {has_think}, <answer>: {has_answer}")
 
     except Exception as e:
+        error_time = time.time() - start_time
+        print(f"❌ Stream error after {error_time:.1f}s ({token_count} tokens): {type(e).__name__}: {e}")
+
+        # Log partial response for debugging
+        if full_response:
+            print(f"Partial response: {full_response[:100]}...")
+
+        # Re-raise with context
+        import traceback
+        traceback.print_exc()
         raise RuntimeError(
-            f"Unexpected error during {selected_model} inference: {e}"
+            f"Error during {selected_model} streaming inference: {e}"
         ) from e
