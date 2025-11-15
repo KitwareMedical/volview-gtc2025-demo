@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useCurrentImage } from '@/src/composables/useCurrentImage';
 import { useServerStore, ConnectionState } from '@/src/store/server-1';
 import { useNVSegmentStore } from '@/src/store/nv-segment';
@@ -16,156 +16,58 @@ import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtk from '@kitware/vtk.js/vtk';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 import type { TypedArray } from '@kitware/vtk.js/types';
+import {
+  SEGMENT_MODEL_CONFIGS,
+  getClassItems,
+  getClassName,
+} from '@/src/store/segment-classes';
 
-// --- Segmentation Class Mapping ---
-// Maps class index to class name for VISTA-3D
-const SEGMENT_CLASSES: Record<number, string> = {
-  1: "liver",
-  2: "kidney",
-  3: "spleen",
-  4: "pancreas",
-  5: "right kidney",
-  6: "aorta",
-  7: "inferior vena cava",
-  8: "right adrenal gland",
-  9: "left adrenal gland",
-  10: "gallbladder",
-  11: "esophagus",
-  12: "stomach",
-  13: "duodenum",
-  14: "left kidney",
-  15: "bladder",
-  16: "prostate or uterus",
-  17: "portal vein and splenic vein",
-  18: "rectum",
-  19: "small bowel",
-  20: "lung",
-  21: "bone",
-  22: "brain",
-  23: "lung tumor",
-  24: "pancreatic tumor",
-  25: "hepatic vessel",
-  26: "hepatic tumor",
-  27: "colon cancer primaries",
-  28: "left lung upper lobe",
-  29: "left lung lower lobe",
-  30: "right lung upper lobe",
-  31: "right lung middle lobe",
-  32: "right lung lower lobe",
-  33: "vertebrae L5",
-  34: "vertebrae L4",
-  35: "vertebrae L3",
-  36: "vertebrae L2",
-  37: "vertebrae L1",
-  38: "vertebrae T12",
-  39: "vertebrae T11",
-  40: "vertebrae T10",
-  41: "vertebrae T9",
-  42: "vertebrae T8",
-  43: "vertebrae T7",
-  44: "vertebrae T6",
-  45: "vertebrae T5",
-  46: "vertebrae T4",
-  47: "vertebrae T3",
-  48: "vertebrae T2",
-  49: "vertebrae T1",
-  50: "vertebrae C7",
-  51: "vertebrae C6",
-  52: "vertebrae C5",
-  53: "vertebrae C4",
-  54: "vertebrae C3",
-  55: "vertebrae C2",
-  56: "vertebrae C1",
-  57: "trachea",
-  58: "left iliac artery",
-  59: "right iliac artery",
-  60: "left iliac vena",
-  61: "right iliac vena",
-  62: "colon",
-  63: "left rib 1",
-  64: "left rib 2",
-  65: "left rib 3",
-  66: "left rib 4",
-  67: "left rib 5",
-  68: "left rib 6",
-  69: "left rib 7",
-  70: "left rib 8",
-  71: "left rib 9",
-  72: "left rib 10",
-  73: "left rib 11",
-  74: "left rib 12",
-  75: "right rib 1",
-  76: "right rib 2",
-  77: "right rib 3",
-  78: "right rib 4",
-  79: "right rib 5",
-  80: "right rib 6",
-  81: "right rib 7",
-  82: "right rib 8",
-  83: "right rib 9",
-  84: "right rib 10",
-  85: "right rib 11",
-  86: "right rib 12",
-  87: "left humerus",
-  88: "right humerus",
-  89: "left scapula",
-  90: "right scapula",
-  91: "left clavicula",
-  92: "right clavicula",
-  93: "left femur",
-  94: "right femur",
-  95: "left hip",
-  96: "right hip",
-  97: "sacrum",
-  98: "left gluteus maximus",
-  99: "right gluteus maximus",
-  100: "left gluteus medius",
-  101: "right gluteus medius",
-  102: "left gluteus minimus",
-  103: "right gluteus minimus",
-  104: "left autochthon",
-  105: "right autochthon",
-  106: "left iliopsoas",
-  107: "right iliopsoas",
-  108: "left atrial appendage",
-  109: "brachiocephalic trunk",
-  110: "left brachiocephalic vein",
-  111: "right brachiocephalic vein",
-  112: "left common carotid artery",
-  113: "right common carotid artery",
-  114: "costal cartilages",
-  115: "heart",
-  116: "left kidney cyst",
-  117: "right kidney cyst",
-  118: "prostate",
-  119: "pulmonary vein",
-  120: "skull",
-  121: "spinal cord",
-  122: "sternum",
-  123: "left subclavian artery",
-  124: "right subclavian artery",
-  125: "superior vena cava",
-  126: "thyroid gland",
-  127: "vertebrae S1",
-  128: "bone lesion",
-  129: "kidney mass",
-  130: "liver tumor",
-  131: "vertebrae L6",
-  132: "airway"
-};
+// Model selection
+const selectedModel = ref<string>('NV-Segment-CT');
+const selectedModality = ref<string>('CT');
 
-// Create items for the select dropdown
-interface ClassItem {
-  title: string;
-  value: number;
-}
+// Available model options
+const modelOptions = [
+  {
+    value: 'NV-Segment-CT',
+    title: 'NV-Segment-CT',
+    subtitle: '132 classes - CT only (best for tumor segmentation)',
+  },
+  {
+    value: 'NV-Segment-CTMR',
+    title: 'NV-Segment-CTMR',
+    subtitle: '345 classes - CT & MR (includes brain structures)',
+  },
+];
 
-const availableClasses: ClassItem[] = Object.entries(SEGMENT_CLASSES).map(
-  ([index, name]) => ({
-    title: name,
-    value: parseInt(index, 10),
-  })
+// Modality options (only relevant for CTMR)
+const modalityOptions = [
+  { value: 'CT', title: 'CT Body' },
+  { value: 'MR', title: 'MR Body' },
+  { value: 'MR_BRAIN', title: 'MR Brain' },
+];
+
+// Show modality selector only for CTMR model
+const showModalitySelector = computed(() => selectedModel.value === 'NV-Segment-CTMR');
+
+// Get available classes based on selected model
+const availableClasses = computed(() => getClassItems(selectedModel.value));
+
+// Current model config
+const currentModelConfig = computed(() => SEGMENT_MODEL_CONFIGS[selectedModel.value]);
+
+// Modality support text for chip display
+const modalitySupport = computed(() =>
+  selectedModel.value === 'NV-Segment-CT' ? 'CT Only' : 'CT & MR'
 );
+
+// Selected classes for segmentation (empty = segment everything)
+const selectedClasses = ref<number[]>([]);
+
+// Reset selected classes when model changes
+watch(selectedModel, () => {
+  selectedClasses.value = [];
+});
 
 const serverStore = useServerStore();
 const nvSegmentStore = useNVSegmentStore();
@@ -180,9 +82,6 @@ const ready = computed(
 
 const segmentationLoading = ref(false);
 const { currentImageID } = useCurrentImage();
-
-// Selected classes for segmentation (empty = segment everything)
-const selectedClasses = ref<number[]>([]);
 
 // Model info expansion state
 const modelInfoExpanded = ref<number[]>([]);
@@ -236,44 +135,10 @@ const getNextColor = () => {
   nextColorIndex = (nextColorIndex + 1) % CATEGORICAL_COLORS.length;
   return [...color, 255] as const;
 };
-// Helper for default names
-const makeDefaultSegmentName = (value: number) => `Segment ${value}`;
-
-/**
- * Picks a unique name for a segment group with a given prefix.
- * This is localized to this module to avoid changing the upstream store.
- * @param baseName - The base name (usually the parent image name)
- * @param parentID - The parent image ID
- * @param prefix - The prefix to use for the segment group name
- * @returns A unique name for the segment group
- */
-function pickUniqueSegmentGroupName(
-  baseName: string,
-  parentID: string,
-  prefix: string = 'Segment Group'
-) {
-  // Get all existing names for this parent image
-  const existingNames = new Set(
-    Object.values(segmentGroupStore.metadataByID)
-      .filter((meta) => meta.parentImage === parentID)
-      .map((meta) => meta.name)
-  );
-
-  let index = 1;
-  let name = `${prefix} for ${baseName}`; // Initial name suggestion
-
-  // Keep checking for a unique name, appending (index) if needed
-  while (existingNames.has(name)) {
-    index++;
-    name = `${prefix} for ${baseName} (${index})`;
-  }
-
-  return name;
-}
 
 // --- Component Logic ---
 
-const doSegmentWithNVSegmentCT = async () => {
+const doSegmentWithNVSegment = async () => {
   const baseImageId = currentImageID.value;
   if (!baseImageId) return;
 
@@ -285,11 +150,17 @@ const doSegmentWithNVSegmentCT = async () => {
       ? selectedClasses.value
       : [];
 
-    await client.call('segmentWithNVSegmentCT', [baseImageId, labelPrompt]);
+    // Call the new unified endpoint with model and modality parameters
+    await client.call('segmentWithNVSegment', [
+      baseImageId,
+      labelPrompt,
+      selectedModel.value,
+      selectedModality.value
+    ]);
     const labelmapObject = nvSegmentStore.getNVSegmentResult(baseImageId);
 
     if (!labelmapObject) {
-      console.error(`No NV-Segment-CT data found for ID: ${baseImageId}`);
+      console.error(`No ${selectedModel.value} data found for ID: ${baseImageId}`);
       return;
     }
 
@@ -301,13 +172,7 @@ const doSegmentWithNVSegmentCT = async () => {
       throw new Error(`Could not find parent image data for ${baseImageId}`);
     }
     const parentName = imageStore.metadata[baseImageId]?.name ?? 'Image';
-
-    // Generate a unique name for this segment group using the local function
-    const newGroupName = pickUniqueSegmentGroupName(
-      parentName,
-      baseImageId,
-      'NV-Segment-CT'
-    );
+    const newGroupName = `${selectedModel.value} Result for ${parentName}`;
 
     // 2. Ensure segmentation is in the same space as the parent
     const matchingParentSpace = await ensureSameSpace(
@@ -326,21 +191,34 @@ const doSegmentWithNVSegmentCT = async () => {
 
     const segments = Array.from(uniqueValues).map((value) => ({
       value,
-      name: SEGMENT_CLASSES[value] || makeDefaultSegmentName(value),
+      name: getClassName(selectedModel.value, value),
       color: [...getNextColor()],
       visible: true,
     }));
 
     const { order, byKey } = normalizeForStore(segments, 'value');
 
-    // 5. Add the new segment group to the store
+    // 5. Find and remove existing group, then add the new one
+
+    // Check if a group with the same name and parent already exists
+    const existingGroupID = Object.keys(segmentGroupStore.metadataByID).find(
+      (id) => {
+        const meta = segmentGroupStore.metadataByID[id];
+        return meta.parentImage === baseImageId && meta.name === newGroupName;
+      }
+    );
+
+    if (existingGroupID) {
+      // Overwrite: Remove the old group first
+      segmentGroupStore.removeGroup(existingGroupID);
+    }
+
+    // Add the new (or replacement) label map to the store
     segmentGroupStore.addLabelmap(labelmapImage, {
       name: newGroupName,
       parentImage: baseImageId,
       segments: { order, byValue: byKey },
     });
-
-    console.log(`Segmentation successfully created: ${newGroupName}`);
   } catch (error) {
     console.error('An error occurred during segmentation:', error);
   } finally {
@@ -369,20 +247,66 @@ const selectionHintText = computed(() => {
     </v-alert>
 
     <v-card class="mb-4">
+      <!-- Merged Header with Title and Chips -->
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-auto-fix</v-icon>
-        <span class="text-h6">NV-Segment-CT</span>
+        <span class="text-h6">{{ selectedModel }}</span>
         <v-chip size="small" color="info" variant="outlined" class="ml-3">
           <v-icon start size="small">mdi-cube-scan</v-icon>
-          Whole Body Segmentation
+          {{ currentModelConfig?.numClasses }} Classes | {{ modalitySupport }}
         </v-chip>
       </v-card-title>
 
       <v-card-text>
         <div class="text-body-2 mb-4">
-          Foundation model for 3D CT segmentation. Automatically segment anatomical structures in the loaded CT image.
+          {{ currentModelConfig?.description }}. Foundation model for 3D medical image segmentation.
         </div>
 
+        <!-- Model Selector -->
+        <div class="mb-4">
+          <v-select
+            v-model="selectedModel"
+            :items="modelOptions"
+            label="Select Model"
+            item-title="title"
+            item-value="value"
+            variant="outlined"
+            density="compact"
+            :disabled="segmentationLoading"
+          >
+            <template #item="{ props, item }">
+              <v-list-item v-bind="props">
+                <template #subtitle>
+                  <span class="text-caption">{{ item.raw.subtitle }}</span>
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
+        </div>
+
+        <!-- Modality Selector (only for CTMR) -->
+        <div v-if="showModalitySelector" class="mb-4">
+          <v-select
+            v-model="selectedModality"
+            :items="modalityOptions"
+            label="Image Modality"
+            variant="outlined"
+            density="compact"
+            :disabled="segmentationLoading"
+          >
+            <template #prepend>
+              <v-icon>mdi-image-filter-center-focus</v-icon>
+            </template>
+          </v-select>
+          <div class="text-caption text-medium-emphasis mt-1">
+            <div class="mb-1">Note: NV-Segment-CTMR also works with CT images (all 132 CT classes included)</div>
+            <div v-if="selectedModality === 'MR_BRAIN'" class="text-warning">
+              ⚠️ Brain segmentation requires skull-stripped, normalized T1 MRI. See <a href="https://github.com/junyuchen245/MIR/tree/main/tutorials/brain_MRI_preprocessing" target="_blank" class="text-info">preprocessing guide</a>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Selector -->
         <div class="mb-4">
           <v-select
             v-model="selectedClasses"
@@ -418,7 +342,7 @@ const selectionHintText = computed(() => {
           color="primary"
           size="x-large"
           block
-          @click="doSegmentWithNVSegmentCT"
+          @click="doSegmentWithNVSegment"
           :loading="segmentationLoading"
           :disabled="!ready || !hasCurrentImage"
           class="mb-3"
@@ -433,6 +357,7 @@ const selectionHintText = computed(() => {
       </v-card-text>
     </v-card>
 
+    <!-- Collapsible Model Information -->
     <v-expansion-panels v-model="modelInfoExpanded" variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title>

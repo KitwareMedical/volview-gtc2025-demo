@@ -130,6 +130,250 @@ Before getting started, ensure your system meets the following requirements:
    nvcc --version
    ```
 
+## 📦 Model Setup
+
+Before running the application, you need to download the required NVIDIA medical AI models. This section provides step-by-step instructions for downloading each model.
+
+### Prerequisites
+
+1. **Install Hugging Face CLI**:
+   ```bash
+   pip install huggingface_hub
+   ```
+
+2. **Install Git** (for cloning GitHub repositories):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install git
+
+   # macOS
+   brew install git
+   ```
+
+### Model Directory Structure
+
+Models are stored directly in the `models/` directory with a flat structure:
+```
+models/
+├── NV-Reason-CXR-3B/              # Chest X-ray reasoning model
+├── NV-Segment-CT/                 # CT segmentation (132 classes)
+├── NV-Segment-CTMR/               # CT & MR segmentation (345+ classes)
+├── NV-Generate-CT/                # Synthetic CT generation
+│   ├── configs/                   # Configuration files from GitHub
+│   ├── scripts/                   # Inference scripts from GitHub
+│   └── models/                    # CT-specific model weights
+└── NV-Generate-MR/                # Synthetic MR generation
+    ├── configs/                   # Configuration files from GitHub
+    ├── scripts/                   # Inference scripts from GitHub
+    └── models/                    # MR-specific model weights
+
+reference/                          # Reference repositories (for setup only)
+├── NV-Segment-CTMR-github/        # NVIDIA-Medtech segmentation repo
+└── NV-Generate-CTMR-github/       # NVIDIA-Medtech generation repo
+```
+
+### Downloading Models
+
+First, create the required directories:
+
+```bash
+mkdir -p models reference
+```
+
+#### 1. NV-Reason-CXR-3B (Chest X-ray Analysis)
+
+Download the multimodal reasoning model for chest X-rays:
+
+```bash
+# From project root
+huggingface-cli download nvidia/NV-Reason-CXR-3B \
+  --local-dir models/NV-Reason-CXR-3B \
+  --local-dir-use-symlinks False
+```
+
+**Model Info:**
+- Size: ~6GB
+- Purpose: Interactive chat-based analysis of chest X-rays
+- Architecture: Vision-Language Model (3B parameters)
+
+#### 2. NV-Segment Models (3D Segmentation)
+
+Both segmentation models require MONAI bundle configs from GitHub + model weights from HuggingFace.
+
+**Step 1: Clone the segmentation models repository (one-time setup)**
+
+```bash
+git clone https://github.com/NVIDIA-Medtech/NV-Segment-CTMR.git reference/NV-Segment-CTMR-github
+```
+
+**Step 2a: Setup NV-Segment-CT (132 classes, CT only)**
+
+```bash
+# Copy bundle structure (configs, scripts, docs)
+cp -r reference/NV-Segment-CTMR-github/NV-Segment-CT models/NV-Segment-CT
+
+# Ensure models directory exists
+mkdir -p models/NV-Segment-CT/models
+
+# Download model weights directly (CT config expects model_mrct.pt)
+wget "https://huggingface.co/nvidia/NV-Segment-CT/resolve/main/vista3d_pretrained_model/model.pt" \
+  -O models/NV-Segment-CT/models/model_mrct.pt
+```
+
+**Step 2b: Setup NV-Segment-CTMR (345+ classes, CT & MR)**
+
+```bash
+# Copy bundle structure
+cp -r reference/NV-Segment-CTMR-github/NV-Segment-CTMR models/NV-Segment-CTMR
+
+# Ensure models directory exists
+mkdir -p models/NV-Segment-CTMR/models
+
+# Download model weights directly (CTMR config expects model.pt)
+wget "https://huggingface.co/nvidia/NV-Segment-CTMR/resolve/main/vista3d_pretrained_model/model.pt" \
+  -O models/NV-Segment-CTMR/models/model.pt
+```
+
+**Model Info:**
+- **NV-Segment-CT**: 132 classes, CT scans only
+- **NV-Segment-CTMR**: 345+ classes, supports CT_BODY, MRI_BODY, MRI_BRAIN modalities
+- Size: ~2GB each
+- Architecture: VISTA-3D transformer-based (218M parameters)
+
+#### 3. NV-Generate Models (Synthetic CT & MR Generation)
+
+NV-Generate requires **separate directories** for CT and MR because they are trained on different base modalities and require different datasets.
+
+Each model requires manual assembly from two sources:
+- **GitHub**: Configuration files and inference scripts (NVIDIA-Medtech/NV-Generate-CTMR)
+- **HuggingFace**: Model weights and modality-specific datasets
+
+**Step 1: Clone the configuration repository (one-time setup)**
+
+```bash
+git clone https://github.com/NVIDIA-Medtech/NV-Generate-CTMR.git \
+  reference/NV-Generate-CTMR-github
+```
+
+**Step 2a: Setup NV-Generate-CT**
+
+```bash
+# Create directory structure
+mkdir -p models/NV-Generate-CT
+
+# Copy configuration files and scripts from GitHub
+cp -r reference/NV-Generate-CTMR-github/configs models/NV-Generate-CT/
+cp -r reference/NV-Generate-CTMR-github/scripts models/NV-Generate-CT/
+
+# Download CT model weights and CT-specific datasets from HuggingFace
+huggingface-cli download nvidia/NV-Generate-CT \
+  --local-dir models/NV-Generate-CT \
+  --local-dir-use-symlinks False
+```
+
+**Step 2b: Setup NV-Generate-MR**
+
+```bash
+# Create directory structure
+mkdir -p models/NV-Generate-MR
+
+# Copy configuration files and scripts from GitHub
+cp -r reference/NV-Generate-CTMR-github/configs models/NV-Generate-MR/
+cp -r reference/NV-Generate-CTMR-github/scripts models/NV-Generate-MR/
+
+# Download MR model weights and MR-specific datasets from HuggingFace
+huggingface-cli download nvidia/NV-Generate-MR \
+  --local-dir models/NV-Generate-MR \
+  --local-dir-use-symlinks False
+```
+
+**Model Info:**
+- **Architecture**: Rectified Flow (RFLOW) diffusion models - 30 steps, ~2-3 minutes per generation
+- **NV-Generate-CT**:
+  - Required models: autoencoder_v1.pt, diff_unet_3d_rflow-ct.pt
+  - Required configs: config_maisi_diff_model_rflow-ct.json, environment_maisi_diff_model_rflow-ct.json
+  - Size: ~4GB (models only, datasets not required for diff_model_infer workflow)
+- **NV-Generate-MR**:
+  - Required models: autoencoder_v2.pt, diff_unet_3d_rflow-mr.pt
+  - Required configs: config_maisi_diff_model_rflow-mr.json, environment_maisi_diff_model_rflow-mr.json
+  - Size: ~4GB (models only, datasets not required for diff_model_infer workflow)
+- **Resolution**: Up to 512×512×768 voxels
+- **Spacing**: 0.5mm to 5.0mm
+- **Usage**: Uses simplified `scripts/diff_model_infer.py` workflow for image generation
+
+**Important**: CT and MR models are kept separate because they are trained on different base modalities.
+
+### Verify Model Installation
+
+After downloading, verify that all models are correctly installed:
+
+```bash
+cd server
+python3 scripts/verify_models.py
+```
+
+Expected output:
+```
+======================================================================
+NVIDIA Medical AI Models - Installation Verification
+======================================================================
+
+✅ NV-Reason-CXR-3B
+✅ NV-Segment-CT (132 classes)
+✅ NV-Segment-CTMR (345+ classes)
+✅ NV-Generate-CT
+✅ NV-Generate-MR
+
+Models verified: 5/5
+✅ All models are properly installed and configured!
+```
+
+**Note:** The verification script checks for:
+- **NV-Segment models**: `configs/inference.json` and `models/model.pt` (or `model_mrct.pt` for CT)
+- **NV-Generate-CT**: Separate directory with:
+  - `scripts/diff_model_infer.py` (from GitHub)
+  - `configs/environment_maisi_diff_model_rflow-ct.json`
+  - `configs/config_maisi_diff_model_rflow-ct.json`
+  - CT-specific models: autoencoder_v1.pt, diff_unet_3d_rflow-ct.pt
+- **NV-Generate-MR**: Separate directory with:
+  - `scripts/diff_model_infer.py` (from GitHub)
+  - `configs/environment_maisi_diff_model_rflow-mr.json`
+  - `configs/config_maisi_diff_model_rflow-mr.json`
+  - MR-specific models: autoencoder_v2.pt, diff_unet_3d_rflow-mr.pt
+
+### Custom Model Paths (Optional)
+
+You can override default model paths using environment variables. Create a `.env` file in the project root:
+
+```bash
+# Copy example environment file
+cp .env.example .env
+```
+
+Edit `.env` to specify custom model locations:
+
+```bash
+# Custom model paths (optional)
+NV_REASON_PATH=/custom/path/to/NV-Reason-CXR-3B
+NV_SEGMENT_CT_PATH=/custom/path/to/NV-Segment-CT
+NV_SEGMENT_CTMR_PATH=/custom/path/to/NV-Segment-CTMR
+NV_GENERATE_CT_PATH=/custom/path/to/NV-Generate-CT
+NV_GENERATE_MR_PATH=/custom/path/to/NV-Generate-MR
+```
+
+### Troubleshooting
+
+**Issue:** `FileNotFoundError: Bundle not found`
+- **Solution:** Run the verification script (`python config/model_paths.py`) to identify missing models, then re-download them.
+
+**Issue:** HuggingFace CLI download fails
+- **Solution:** Check your internet connection and ensure you have enough disk space (~15GB total).
+
+**Issue:** Model path not recognized
+- **Solution:** Ensure you're running commands from the project root directory and the `models/` directory exists.
+
+---
+
 ## 🚀 Getting Started
 
 Follow these steps to set up the front-end and back-end services.
@@ -170,6 +414,24 @@ poetry install
   ```sh
   poetry run python -m volview_server -P 4015 -H 0.0.0.0 2025_nvidiagtcdc/chat.py
   ```
+
+  **Note:** The Reason server preloads the NV-Reason-CXR-3B model on startup (~1 minute on first run). You'll see:
+  ```
+  ======================================================================
+  PRELOADING MODELS ON SERVER STARTUP
+  ======================================================================
+  This may take ~1 minute on first run...
+
+  [GPU detection and model loading output]
+
+  ✅ Model preloaded successfully in 56.1s
+  Server is ready to accept requests!
+  ======================================================================
+
+  ======== Running on http://0.0.0.0:4015 ========
+  ```
+
+  Wait for `"Server is ready to accept requests!"` before connecting from the UI. This ensures immediate response to your first chat message.
 
 * **Generate (Synthetic Data)**
 
