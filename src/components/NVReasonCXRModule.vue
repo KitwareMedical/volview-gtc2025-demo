@@ -12,9 +12,10 @@ const TARGET_VIEW_ID = 'Axial';
 
 /** Suggested prompts for quick access */
 const SUGGESTED_PROMPTS = [
-  'Find abnormalities and support devices',
+  'Find abnormalities',
   'Examine the chest X-ray',
   'Provide differentials',
+  'Write a Structured Report',
 ] as const;
 
 // --- Store and Composables Setup ---
@@ -36,6 +37,9 @@ interface Message {
   id: number;
   text: string;
   sender: 'user' | 'bot';
+  thinkContent?: string;
+  answerContent?: string;
+  isThinkCollapsed?: boolean;
 }
 
 const chatHistory = ref<Message[]>([]);
@@ -48,6 +52,55 @@ const scrollToMax = () => {
   if (chatLogRef.value) {
     chatLogRef.value.scrollTop = chatLogRef.value.scrollHeight;
   }
+};
+
+/**
+ * Parses a response text to extract <think> and <answer> sections.
+ * Handles incomplete tags gracefully during streaming.
+ */
+const parseThinkAndAnswer = (text: string): {
+  thinkContent: string;
+  answerContent: string;
+  remainingText: string;
+} => {
+  let thinkContent = '';
+  let answerContent = '';
+  let remainingText = text;
+
+  // Extract <think> content
+  const thinkMatch = text.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
+  if (thinkMatch) {
+    thinkContent = thinkMatch[1].trim();
+    // Check if tag is closed
+    if (text.includes('</think>')) {
+      remainingText = text.replace(/<think>[\s\S]*?<\/think>/, '');
+    } else {
+      // Tag is not closed yet, keep remainder for next update
+      remainingText = '';
+    }
+  }
+
+  // Extract <answer> content from remaining text
+  const answerMatch = remainingText.match(/<answer>([\s\S]*?)(?:<\/answer>|$)/);
+  if (answerMatch) {
+    answerContent = answerMatch[1].trim();
+  } else if (remainingText && !remainingText.includes('<think>')) {
+    // If no <answer> tag but we have content outside <think>, treat it as answer
+    answerContent = remainingText.replace(/<\/?answer>/g, '').trim();
+  }
+
+  return { thinkContent, answerContent, remainingText };
+};
+
+/**
+ * Updates a message with parsed think/answer content
+ */
+const updateMessageContent = (message: Message) => {
+  const parsed = parseThinkAndAnswer(message.text);
+  // eslint-disable-next-line no-param-reassign
+  message.thinkContent = parsed.thinkContent;
+  // eslint-disable-next-line no-param-reassign
+  message.answerContent = parsed.answerContent;
 };
 
 // --- Watchers ---
@@ -94,7 +147,24 @@ const resetAllChats = () => {
 };
 
 const appendMessage = (text: string, sender: 'user' | 'bot') => {
-  chatHistory.value.push({ id: Date.now(), text, sender });
+  const message: Message = {
+    id: Date.now(),
+    text,
+    sender,
+    isThinkCollapsed: false // Start expanded by default
+  };
+  if (sender === 'bot') {
+    updateMessageContent(message);
+  }
+  chatHistory.value.push(message);
+  return message;
+};
+
+const toggleThinkCollapse = (messageId: number) => {
+  const message = chatHistory.value.find((m) => m.id === messageId);
+  if (message) {
+    message.isThinkCollapsed = !message.isThinkCollapsed;
+  }
 };
 
 const useSuggestedPrompt = (prompt: string) => {
@@ -120,6 +190,9 @@ const sendMessage = async () => {
   newMessage.value = '';
   isTyping.value = true;
 
+  // Create a placeholder bot message for streaming
+  const botMessage = appendMessage('', 'bot');
+
   try {
     const payload = {
       prompt: promptText,
@@ -127,16 +200,55 @@ const sendMessage = async () => {
     };
     backendModelStore.setAnalysisInput(imageId, payload);
 
-    await client.call('multimodalLlmAnalysis', [imageId, currentSlice.value]);
+    // Use streaming endpoint
+    const botMessageIndex = chatHistory.value.length - 1;
 
-    const botResponse = backendModelStore.analysisOutput[imageId];
-    if (typeof botResponse !== 'string') {
-      throw new Error('Received an invalid response from the server.');
-    }
-    appendMessage(botResponse, 'bot');
+    await client.stream(
+      'multimodalLlmAnalysisStream',
+      [imageId, currentSlice.value],
+      (data: { token: string }) => {
+        // Get the current message from the array
+        const message = chatHistory.value[botMessageIndex];
+
+        // Append token to text
+        message.text += data.token;
+
+        // Update parsed content in real-time
+        updateMessageContent(message);
+
+        // Trigger Vue reactivity by creating a new object with all properties preserved
+        chatHistory.value[botMessageIndex] = {
+          ...message,
+          thinkContent: message.thinkContent,
+          answerContent: message.answerContent,
+        };
+      }
+    ).catch((streamError) => {
+      // Handle stream-specific errors without disconnecting
+      console.error('Stream error (handled):', streamError);
+
+      // If we have partial content, keep it; otherwise show error
+      if (!botMessage.text || botMessage.text.length === 0) {
+        botMessage.text = 'Sorry, streaming was interrupted. Please try again.';
+        updateMessageContent(botMessage);
+      }
+
+      // Don't re-throw - this prevents disconnection
+    });
+
+    // After streaming completes successfully, do a final parse
+    const finalMessage = chatHistory.value[botMessageIndex];
+    updateMessageContent(finalMessage);
+
+    console.log('Stream completed successfully');
   } catch (error) {
-    console.error('Error calling multimodalLlmAnalysis:', error);
-    appendMessage('Sorry, an error occurred. Please try again.', 'bot');
+    console.error('Error calling multimodalLlmAnalysisStream:', error);
+
+    // Only show error if we have no content
+    if (!botMessage.text || botMessage.text.length === 0) {
+      botMessage.text = 'Sorry, an error occurred. Please try again.';
+      updateMessageContent(botMessage);
+    }
   } finally {
     isTyping.value = false;
   }
@@ -192,11 +304,61 @@ const sendMessage = async () => {
           class="mb-4"
         >
           <div :class="['message-bubble', `message-${message.sender}`]">
-            <div
-              v-if="message.sender === 'bot'"
-              v-html="md.render(message.text)"
-            ></div>
-            <div v-else class="message-text-user">{{ message.text }}</div>
+            <!-- User message: simple text -->
+            <div v-if="message.sender === 'user'" class="message-text-user">
+              {{ message.text }}
+            </div>
+
+            <!-- Bot message: two-section layout with think and answer -->
+            <div v-else class="bot-message-content">
+              <!-- Thinking Section -->
+              <div v-if="message.thinkContent" class="think-section">
+                <div
+                  class="section-header"
+                  @click="toggleThinkCollapse(message.id)"
+                  @keydown.enter="toggleThinkCollapse(message.id)"
+                  @keydown.space.prevent="toggleThinkCollapse(message.id)"
+                  tabindex="0"
+                  role="button"
+                  :aria-expanded="!message.isThinkCollapsed"
+                >
+                  <v-icon size="small" class="section-icon">mdi-brain</v-icon>
+                  <span class="section-title">Reasoning</span>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    class="collapse-btn"
+                  >
+                    <v-icon size="small">
+                      {{ message.isThinkCollapsed ? 'mdi-chevron-down' : 'mdi-chevron-up' }}
+                    </v-icon>
+                  </v-btn>
+                </div>
+                <v-expand-transition>
+                  <div v-show="!message.isThinkCollapsed" class="section-content">
+                    <div v-html="md.render(message.thinkContent)"></div>
+                  </div>
+                </v-expand-transition>
+              </div>
+
+              <!-- Answer Section -->
+              <div v-if="message.answerContent" class="answer-section">
+                <div class="section-header">
+                  <v-icon size="small" class="section-icon">mdi-check-circle</v-icon>
+                  <span class="section-title">Analysis</span>
+                </div>
+                <div class="section-content">
+                  <div v-html="md.render(message.answerContent)"></div>
+                </div>
+              </div>
+
+              <!-- Fallback: show raw text if no sections parsed yet -->
+              <div v-if="!message.thinkContent && !message.answerContent && message.text" class="section-content">
+                <div v-html="md.render(message.text)"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -263,29 +425,142 @@ const sendMessage = async () => {
 }
 
 .message-bubble {
-  padding: 10px 16px;
-  border-radius: 18px;
+  padding: 12px 16px;
+  border-radius: 10px;
   max-width: 85%;
   line-height: 1.5;
   word-wrap: break-word;
+  font-size: 0.875em;
 }
 
 .message-user {
-  background-color: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
+  background: linear-gradient(135deg, #1e3d5c 0%, #2d4a66 100%);
+  color: #b3d4f5;
+  border: 1px solid #3d5a7a;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Bot message: remove bubble background and padding */
 .message-bot {
-  background-color: rgb(var(--v-theme-surface-variant));
-  color: rgb(var(--v-theme-on-surface-variant));
-  border-bottom-left-radius: 4px;
+  background-color: transparent;
+  padding: 0;
 }
 
 .message-text-user {
   white-space: pre-wrap;
 }
 
+/* Bot message content container */
+.bot-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Section base styles */
+.think-section,
+.answer-section {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Thinking section - dark purple/indigo theme */
+.think-section {
+  border: 1px solid #7e57c2;
+  background: linear-gradient(135deg, #2c2540 0%, #3d2f52 100%);
+}
+
+/* Answer section - dark teal/cyan theme */
+.answer-section {
+  border: 1px solid #26a69a;
+  background: linear-gradient(135deg, #1e3a38 0%, #2d4a48 100%);
+}
+
+/* Section headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.85em;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.think-section .section-header {
+  background: linear-gradient(135deg, #4a3a5c 0%, #5d4a70 100%);
+  border-bottom: 1px solid #7e57c2;
+  color: #d1c4e9;
+}
+
+.think-section .section-header:hover {
+  background: linear-gradient(135deg, #564466 0%, #69567a 100%);
+}
+
+.think-section .section-header:focus {
+  outline: 2px solid #b39ddb;
+  outline-offset: 2px;
+}
+
+.answer-section .section-header {
+  background: linear-gradient(135deg, #2d5450 0%, #3d6460 100%);
+  border-bottom: 1px solid #26a69a;
+  cursor: default;
+  color: #b2dfdb;
+}
+
+.section-icon {
+  margin-right: 8px;
+  opacity: 0.9;
+}
+
+.think-section .section-icon {
+  color: #b39ddb;
+}
+
+.answer-section .section-icon {
+  color: #80cbc4;
+}
+
+.section-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 0.75em;
+}
+
+.collapse-btn {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  color: #d1c4e9;
+}
+
+.collapse-btn:hover {
+  opacity: 1;
+}
+
+/* Section content */
+.section-content {
+  padding: 14px;
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+
+.think-section .section-content {
+  color: #d1c4e9;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.answer-section .section-content {
+  color: #b2dfdb;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Markdown content styles for bot messages */
 .message-bot :deep(p) {
   margin-bottom: 0.5em;
 }
