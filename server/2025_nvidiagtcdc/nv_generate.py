@@ -115,8 +115,38 @@ def validate_all_bundles():
 validate_all_bundles()
 
 # --- Global Setup ---
+
+# Worker process initializer for ProcessPoolExecutor
+def _init_worker():
+    """
+    Initializer function run in each worker process.
+    Removes server path from sys.path to avoid 'scripts' namespace conflict,
+    then adds bundle paths so scripts/ modules can be imported correctly.
+    """
+    import sys
+    from pathlib import Path
+    
+    # Remove server path to prevent scripts/ namespace package conflict
+    server_path = str(Path(__file__).parent.parent)
+    while server_path in sys.path:
+        sys.path.remove(server_path)
+    
+    # Clear any cached 'scripts' module to force fresh import
+    if 'scripts' in sys.modules:
+        del sys.modules['scripts']
+    
+    # Add bundle paths at the beginning
+    bundle_paths = [
+        str(GENERATE_MODELS['NV-Generate-CT']['bundle_path']),
+        str(GENERATE_MODELS['NV-Generate-MR']['bundle_path']),
+    ]
+    
+    for path in bundle_paths:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
 volview = VolViewApi()
-process_pool = ProcessPoolExecutor(max_workers=2)
+process_pool = ProcessPoolExecutor(max_workers=2, initializer=_init_worker)
 
 
 def do_maisi_generation(
@@ -156,12 +186,10 @@ def do_maisi_generation(
             "Please ensure bundle installation is complete (see README.md)"
         )
 
-    # Add bundle to Python path to import diff_model_infer
-    sys.path.insert(0, str(bundle_root))
-    try:
-        from scripts.diff_model_infer import diff_model_infer
-    finally:
-        sys.path.remove(str(bundle_root))
+    # Import diff_model_infer from the bundle's scripts package
+    # The bundle paths are in sys.path (set by worker initializer)
+    # The server path is removed to avoid scripts/ namespace package conflict
+    from scripts.diff_model_infer import diff_model_infer
 
     with tempfile.TemporaryDirectory() as tmpdir:
         output_dir = os.path.join(tmpdir, "output")
