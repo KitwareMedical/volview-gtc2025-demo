@@ -153,13 +153,16 @@ def get_image_slice(img: itk.Image, active_layer: int | None = None) -> itk.Imag
     
     return slice_2d
 
-def do_clara_nv_reason_cxr_3b_inference_streaming(serialized_img: Dict[str, Any], analysis_input: Dict):
+def do_clara_nv_reason_cxr_3b_inference_streaming(itk_img: itk.Image, analysis_input: Dict):
     """Runs Clara NV-Reason-CXR-3B inference with streaming.
 
     Note: Model warmup happens in the parent endpoint before this is called
     to avoid stream timeouts during first load.
+    
+    Args:
+        itk_img: ITK image (already converted from vtkjs by RPC deserializer)
+        analysis_input: Dictionary with 'prompt' and 'history' keys
     """
-    itk_img = convert_vtkjs_to_itk_image(serialized_img)
     return run_nv_reason_cxr_inference_streaming(
         input_data=analysis_input, itk_img=itk_img
     )
@@ -168,6 +171,7 @@ def do_clara_nv_reason_cxr_3b_inference_streaming(serialized_img: Dict[str, Any]
 STREAMING_INFERENCE_DISPATCH = {
     "Clara NV-Reason-CXR-3B": do_clara_nv_reason_cxr_3b_inference_streaming,
 }
+
 
 
 @volview.expose("multimodalLlmAnalysisStream")
@@ -197,16 +201,14 @@ async def multimodal_llm_analysis_stream(img_id: str | None = None, active_layer
         raise ValueError(f"Unknown model specified: '{selected_model}'. Available models: {list(STREAMING_INFERENCE_DISPATCH.keys())}")
 
     # --- 3. Get and process the image ---
-    image_cache_store = get_current_client_store("image-cache")
-    img = await image_cache_store.getVtkImageData(img_id)
-
-    # Convert RGB to grayscale if needed (NV-Reason expects grayscale)
-    img_grayscale = convert_vtkjs_rgb_to_grayscale(img)
-
-    # Convert from vtkjs dict to ITK image
-    itk_img = convert_vtkjs_to_itk_image(img_grayscale)
+    # Note: We disable auto-deserialization (transform_args=False) to get the raw
+    # vtkjs format from the client, then manually convert to ITK. This makes the
+    # API behavior match its name (getVtkImageData returns vtkjs data).
+    image_cache_store = get_current_client_store("image-cache", transform_args=False)
+    vtkjs_data = await image_cache_store.getVtkImageData(img_id)
+    itk_img = convert_vtkjs_to_itk_image(vtkjs_data)
+    
     img_slice = get_image_slice(itk_img, active_layer)
-    serialized_img_vtkjs = convert_itk_to_vtkjs_image(img_slice)
 
     # --- 4. Execute streaming inference ---
     # Note: Model is preloaded during server startup, so this should be fast
@@ -215,8 +217,8 @@ async def multimodal_llm_analysis_stream(img_id: str | None = None, active_layer
     streaming_start = time.time()
 
     try:
-        # Get the async generator from the inference function
-        token_generator = inference_function(serialized_img_vtkjs, analysis_input_dict)
+        # Pass the ITK image slice and analysis input to the inference function
+        token_generator = inference_function(img_slice, analysis_input_dict)
 
         # Yield tokens as they arrive
         async for token in token_generator:

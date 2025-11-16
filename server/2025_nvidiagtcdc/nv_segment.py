@@ -242,7 +242,8 @@ async def run_nv_segment_segmentation(
         pass  # Non-critical, continue if cleanup fails
 
     # Fetch and convert image
-    image_cache_store = get_current_client_store("image-cache")
+    # Disable auto-deserialization to get raw vtkjs format
+    image_cache_store = get_current_client_store("image-cache", transform_args=False)
     vtkjs_image = await image_cache_store.getVtkImageData(img_id)
     if vtkjs_image is None:
         raise ValueError(f"No image found for ID: {img_id}")
